@@ -202,9 +202,7 @@ describe("effectBuilder proxy compatibility", () => {
       path: "/users",
     });
     const withError = errors({ BAD_REQUEST: { message: "bad request" } });
-    expect(withError["~orpc"].errorMap.BAD_REQUEST.message).toBe(
-      "bad request",
-    );
+    expect(withError["~orpc"].errorMap.BAD_REQUEST.message).toBe("bad request");
   });
 
   it("keeps callable procedure clients executable while exposing the procedure surface", async () => {
