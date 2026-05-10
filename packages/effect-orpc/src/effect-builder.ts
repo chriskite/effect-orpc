@@ -292,6 +292,12 @@ export class EffectBuilder<
   TRequirementsProvided,
   TRuntimeError
 > {
+  /**
+   * Sets or overrides the config.
+   *
+   * @see {@link https://orpc.dev/docs/client/server-side#middlewares-order Middlewares Order Docs}
+   * @see {@link https://orpc.dev/docs/best-practices/dedupe-middleware#configuration Dedupe Middleware Docs}
+   */
   declare $config: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -302,6 +308,11 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["$config"];
+  /**
+   * Set or override the initial context.
+   *
+   * @see {@link https://orpc.dev/docs/context Context Docs}
+   */
   declare $context: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -312,6 +323,11 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["$context"];
+  /**
+   * Sets or overrides the initial meta.
+   *
+   * @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+   */
   declare $meta: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -322,6 +338,13 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["$meta"];
+  /**
+   * Sets or overrides the initial route.
+   * This option is typically relevant when integrating with OpenAPI.
+   *
+   * @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+   * @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+   */
   declare $route: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -332,6 +355,11 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["$route"];
+  /**
+   * Sets or overrides the initial input schema.
+   *
+   * @see {@link https://orpc.dev/docs/procedure#initial-configuration Initial Procedure Configuration Docs}
+   */
   declare $input: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -342,6 +370,9 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["$input"];
+  /**
+   * This property holds the defined options and the effect-specific properties.
+   */
   declare "~effect": EffectBuilderDef<
     TInputSchema,
     TOutputSchema,
@@ -350,6 +381,9 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >;
+  /**
+   * This property holds the defined options.
+   */
   declare "~orpc": EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -360,6 +394,11 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["~orpc"];
+  /**
+   * Creates a middleware.
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
   declare middleware: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -370,6 +409,27 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["middleware"];
+  /**
+   * Adds type-safe custom errors.
+   * Supports both traditional oRPC error definitions and ORPCTaggedError classes.
+   *
+   * @example
+   * ```ts
+   * // Traditional format
+   * builder.errors({ BAD_REQUEST: { status: 400, message: 'Bad request' } })
+   *
+   * // Tagged error class
+   * builder.errors({ USER_NOT_FOUND: UserNotFoundError })
+   *
+   * // Mixed
+   * builder.errors({
+   *   BAD_REQUEST: { status: 400 },
+   *   USER_NOT_FOUND: UserNotFoundError,
+   * })
+   * ```
+   *
+   * @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+   */
   declare errors: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -380,6 +440,13 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["errors"];
+  /**
+   * Uses a middleware to modify the context or improve the pipeline.
+   *
+   * @info Supports both normal middleware and inline middleware implementations.
+   * @note The current context must be satisfy middleware dependent-context
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
   declare use: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -390,6 +457,12 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["use"];
+  /**
+   * Sets or updates the metadata.
+   * The provided metadata is spared-merged with any existing metadata.
+   *
+   * @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+   */
   declare meta: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -400,6 +473,14 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["meta"];
+  /**
+   * Sets or updates the route definition.
+   * The provided route is spared-merged with any existing route.
+   * This option is typically relevant when integrating with OpenAPI.
+   *
+   * @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+   * @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+   */
   declare route: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -410,6 +491,11 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["route"];
+  /**
+   * Defines the input validation schema.
+   *
+   * @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
+   */
   declare input: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -420,6 +506,11 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["input"];
+  /**
+   * Defines the output validation schema.
+   *
+   * @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
+   */
   declare output: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -430,6 +521,25 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["output"];
+  /**
+   * Adds a traceable span to the procedure for telemetry.
+   * The span name is used for Effect tracing via `Effect.withSpan`.
+   * Stack trace is captured at the call site for better error reporting.
+   *
+   * @param spanName - The name of the span for telemetry (e.g., 'users.getUser')
+   * @returns An EffectBuilder with span tracing configured
+   *
+   * @example
+   * ```ts
+   * const getUser = effectOs
+   *   .input(z.object({ id: z.string() }))
+   *   .traced('users.getUser')
+   *   .effect(function* ({ input }) {
+   *     const userService = yield* UserService
+   *     return yield* userService.findById(input.id)
+   *   })
+   * ```
+   */
   declare traced: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -440,6 +550,11 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["traced"];
+  /**
+   * Defines the handler of the procedure using a standard async/sync function.
+   *
+   * @see {@link https://orpc.dev/docs/procedure Procedure Docs}
+   */
   declare handler: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -450,6 +565,13 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["handler"];
+  /**
+   * Defines the handler of the procedure using an Effect.
+   * The Effect is executed using the ManagedRuntime provided during builder creation.
+   * The effect is automatically wrapped with `Effect.withSpan`.
+   *
+   * @see {@link https://orpc.dev/docs/procedure Procedure Docs}
+   */
   declare effect: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -460,6 +582,14 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["effect"];
+  /**
+   * Prefixes all procedures in the router.
+   * The provided prefix is post-appended to any existing router prefix.
+   *
+   * @note This option does not affect procedures that do not define a path in their route definition.
+   *
+   * @see {@link https://orpc.dev/docs/openapi/routing#route-prefixes OpenAPI Route Prefixes Docs}
+   */
   declare prefix: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -470,6 +600,12 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["prefix"];
+  /**
+   * Adds tags to all procedures in the router.
+   * This helpful when you want to group procedures together in the OpenAPI specification.
+   *
+   * @see {@link https://orpc.dev/docs/openapi/openapi-specification#operation-metadata OpenAPI Operation Metadata Docs}
+   */
   declare tag: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -480,6 +616,11 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["tag"];
+  /**
+   * Applies all of the previously defined options to the specified router.
+   *
+   * @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+   */
   declare router: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -490,6 +631,12 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["router"];
+  /**
+   * Create a lazy router
+   * And applies all of the previously defined options to the specified router.
+   *
+   * @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+   */
   declare lazy: EffectBuilderSurface<
     TInitialContext,
     TCurrentContext,
@@ -530,6 +677,17 @@ export class EffectBuilder<
  *
  * @param runtime - The ManagedRuntime that provides services for Effect procedures
  * @returns An EffectBuilder instance for creating Effect-native procedures
+ *
+ * @example
+ * ```ts
+ * import { makeEffectORPC } from '@orpc/effect'
+ * import { Effect, Layer, ManagedRuntime } from 'effect'
+ *
+ * const runtime = ManagedRuntime.make(Layer.empty)
+ * const effectOs = makeEffectORPC(runtime)
+ *
+ * const hello = effectOs.effect(() => Effect.succeed('Hello!'))
+ * ```
  */
 export function makeEffectORPC<TRequirementsProvided, TRuntimeError>(
   runtime: ManagedRuntime.ManagedRuntime<TRequirementsProvided, TRuntimeError>,
@@ -549,8 +707,31 @@ export function makeEffectORPC<TRequirementsProvided, TRuntimeError>(
  * with the specified ManagedRuntime.
  *
  * @param runtime - The ManagedRuntime that provides services for Effect procedures
- * @param builder - The oRPC Builder instance to wrap
+ * @param builder - The oRPC Builder instance to wrap (e.g., a customized `os`)
  * @returns An EffectBuilder instance that extends the original builder with Effect support
+ *
+ * @example
+ * ```ts
+ * import { makeEffectORPC } from '@orpc/effect'
+ * import { os } from '@orpc/server'
+ * import { Effect, Layer, ManagedRuntime } from 'effect'
+ *
+ * // Create a customized builder
+ * const authedOs = os.use(authMiddleware)
+ *
+ * // Wrap it with Effect support
+ * const runtime = ManagedRuntime.make(UserServiceLive)
+ * const effectOs = makeEffectORPC(runtime, authedOs)
+ *
+ * const getUser = effectOs
+ *   .input(z.object({ id: z.string() }))
+ *   .effect(
+ *     Effect.fn(function* ({ input }) {
+ *       const userService = yield* UserService
+ *       return yield* userService.findById(input.id)
+ *     })
+ *   )
+ * ```
  */
 export function makeEffectORPC<
   TBuilder extends AnyBuilderLike<

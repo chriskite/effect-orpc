@@ -264,6 +264,9 @@ export class EffectProcedure<
   EffectErrorMapToErrorMap<TEffectErrorMap>,
   TMeta
 > {
+  /**
+   * This property holds the defined options and the effect-specific properties.
+   */
   declare "~effect": EffectProcedureDef<
     TInitialContext,
     TCurrentContext,
@@ -274,6 +277,9 @@ export class EffectProcedure<
     TRequirementsProvided,
     TRuntimeError
   >;
+  /**
+   * This property holds the defined options.
+   */
   declare "~orpc": ProcedureDef<
     TInitialContext,
     TCurrentContext,
@@ -346,6 +352,12 @@ export class EffectDecoratedProcedure<
       TRuntimeError
     >
 {
+  /**
+   * Adds type-safe custom errors.
+   * Supports both traditional oRPC error definitions and ORPCTaggedError classes.
+   *
+   * @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+   */
   declare errors: EffectDecoratedProcedureSurface<
     TInitialContext,
     TCurrentContext,
@@ -356,6 +368,12 @@ export class EffectDecoratedProcedure<
     TRequirementsProvided,
     TRuntimeError
   >["errors"];
+  /**
+   * Sets or updates the metadata.
+   * The provided metadata is spared-merged with any existing metadata.
+   *
+   * @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+   */
   declare meta: EffectDecoratedProcedureSurface<
     TInitialContext,
     TCurrentContext,
@@ -366,6 +384,14 @@ export class EffectDecoratedProcedure<
     TRequirementsProvided,
     TRuntimeError
   >["meta"];
+  /**
+   * Sets or updates the route definition.
+   * The provided route is spared-merged with any existing route.
+   * This option is typically relevant when integrating with OpenAPI.
+   *
+   * @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+   * @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+   */
   declare route: EffectDecoratedProcedureSurface<
     TInitialContext,
     TCurrentContext,
@@ -376,6 +402,14 @@ export class EffectDecoratedProcedure<
     TRequirementsProvided,
     TRuntimeError
   >["route"];
+  /**
+   * Uses a middleware to modify the context or improve the pipeline.
+   *
+   * @info Supports both normal middleware and inline middleware implementations.
+   * @info Pass second argument to map the input.
+   * @note The current context must be satisfy middleware dependent-context
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
   declare use: EffectDecoratedProcedureSurface<
     TInitialContext,
     TCurrentContext,
@@ -386,6 +420,11 @@ export class EffectDecoratedProcedure<
     TRequirementsProvided,
     TRuntimeError
   >["use"];
+  /**
+   * Make this procedure callable (works like a function while still being a procedure).
+   *
+   * @see {@link https://orpc.dev/docs/client/server-side Server-side Client Docs}
+   */
   declare callable: EffectDecoratedProcedureSurface<
     TInitialContext,
     TCurrentContext,
@@ -396,6 +435,11 @@ export class EffectDecoratedProcedure<
     TRequirementsProvided,
     TRuntimeError
   >["callable"];
+  /**
+   * Make this procedure compatible with server action.
+   *
+   * @see {@link https://orpc.dev/docs/server-action Server Action Docs}
+   */
   declare actionable: EffectDecoratedProcedureSurface<
     TInitialContext,
     TCurrentContext,
