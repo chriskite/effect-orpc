@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "effect-ts": {
+      "source": "Effect-TS/skills",
+      "sourceType": "github",
+      "skillPath": "skills/effect-ts/SKILL.md",
+      "computedHash": "de406c2f0b32fe0a8f58f8348a09069a149d74f8b54e3959fabced9d69392f28"
+    }
+  }
+}
