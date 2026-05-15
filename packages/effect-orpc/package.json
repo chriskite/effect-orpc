@@ -1,21 +1,19 @@
 {
-  "name": "effect-orpc",
+  "name": "@chriskite/effect-orpc",
   "version": "0.2.2",
   "description": "A type-safe integration between oRPC and Effect, enabling Effect-native procedures with service injection, OpenTelemetry tracing, and typesafe Effect errors.",
   "keywords": [
     "effect",
-    "orpc",
-    "utopy",
-    "utopyin"
+    "orpc"
   ],
-  "homepage": "https://github.com/utopyin/effect-orpc#readme",
+  "homepage": "https://github.com/chriskite/effect-orpc#readme",
   "bugs": {
-    "url": "https://github.com/utopyin/effect-orpc/issues"
+    "url": "https://github.com/chriskite/effect-orpc/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/utopyin/effect-orpc.git"
+    "url": "git+https://github.com/chriskite/effect-orpc.git"
   },
   "files": [
     "dist",

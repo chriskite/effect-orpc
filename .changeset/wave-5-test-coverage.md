@@ -1,5 +1,5 @@
 ---
-"effect-orpc": minor
+"@chriskite/effect-orpc": minor
 ---
 
 Test coverage additions (+30 new test cases):

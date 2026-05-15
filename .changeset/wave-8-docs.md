@@ -1,5 +1,5 @@
 ---
-"effect-orpc": minor
+"@chriskite/effect-orpc": minor
 ---
 
 Documentation and governance:

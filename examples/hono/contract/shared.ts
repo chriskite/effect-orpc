@@ -1,4 +1,4 @@
-import { eoc, ORPCTaggedError } from "effect-orpc";
+import { eoc, ORPCTaggedError } from "@chriskite/effect-orpc";
 import * as z from "zod";
 
 export const roleSchema = z.enum(["viewer", "operator", "admin"]);

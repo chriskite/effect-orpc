@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for considering a contribution to `effect-orpc`.
+Thanks for considering a contribution to `@chriskite/effect-orpc`.
 
 ## Development setup
 
@@ -8,7 +8,7 @@ Prerequisites: Node.js ≥ 20 (Node ≥ 24 recommended) and Bun ≥ 1.2 (the rep
 pins Bun via `packageManager`).
 
 ```sh
-git clone https://github.com/utopyin/effect-orpc.git
+git clone https://github.com/chriskite/effect-orpc.git
 cd effect-orpc
 bun install --frozen-lockfile
 ```
@@ -54,5 +54,5 @@ Commit the generated file under `.changeset/`.
 
 ## Reporting bugs
 
-Use [GitHub Issues](https://github.com/utopyin/effect-orpc/issues) for bug
+Use [GitHub Issues](https://github.com/chriskite/effect-orpc/issues) for bug
 reports. For security issues, see [`SECURITY.md`](./SECURITY.md).

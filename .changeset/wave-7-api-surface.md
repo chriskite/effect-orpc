@@ -1,5 +1,5 @@
 ---
-"effect-orpc": minor
+"@chriskite/effect-orpc": minor
 ---
 
 API surface audit (breaking — public surface narrowed):
@@ -12,4 +12,4 @@ API surface audit (breaking — public surface narrowed):
 
 If you were importing these helpers, you have two options:
 1. Switch to the public surface (most users only need `makeEffectORPC`, `implementEffect`, `eoc`, `ORPCTaggedError`).
-2. Pin a deep import (e.g. `effect-orpc/dist/tagged-error.js`) — but this is unsupported and may break at any time.
+2. Pin a deep import (e.g. `@chriskite/effect-orpc/dist/tagged-error.js`) — but this is unsupported and may break at any time.

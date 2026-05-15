@@ -1,4 +1,4 @@
-# effect-orpc
+# @chriskite/effect-orpc
 
 A type-safe integration between [oRPC](https://orpc.dev/) and [Effect](https://effect.website/), enabling Effect-native procedures with full service injection support, OpenTelemetry tracing support and typesafe Effect errors support.
 
@@ -16,11 +16,11 @@ Inspired by [effect-trpc](https://github.com/mikearnaldi/effect-trpc).
 ## Installation
 
 ```bash
-npm install effect-orpc
+npm install @chriskite/effect-orpc
 # or
-pnpm add effect-orpc
+pnpm add @chriskite/effect-orpc
 # or
-bun add effect-orpc
+bun add @chriskite/effect-orpc
 ```
 
 Runnable demos live in the repository's `examples/` directory.
@@ -30,7 +30,7 @@ Runnable demos live in the repository's `examples/` directory.
 ```ts
 import { os } from "@orpc/server";
 import { Effect, ManagedRuntime } from "effect";
-import { makeEffectORPC, ORPCTaggedError } from "effect-orpc";
+import { makeEffectORPC, ORPCTaggedError } from "@chriskite/effect-orpc";
 
 interface User {
   id: number;
@@ -95,7 +95,7 @@ The wrapper enforces that Effect procedures only use services provided by the `M
 
 ```ts
 import { Context, Effect, Layer, ManagedRuntime } from "effect";
-import { makeEffectORPC } from "effect-orpc";
+import { makeEffectORPC } from "@chriskite/effect-orpc";
 
 class ProvidedService extends Context.Tag("ProvidedService")<
   ProvidedService,
@@ -169,7 +169,7 @@ const getUser = effectOs
 ### Creating Tagged Errors
 
 ```ts
-import { ORPCTaggedError } from "effect-orpc";
+import { ORPCTaggedError } from "@chriskite/effect-orpc";
 
 // Basic tagged error - code defaults to 'USER_NOT_FOUND' (CONSTANT_CASE of tag)
 class UserNotFound extends ORPCTaggedError("UserNotFound") {}
@@ -271,19 +271,19 @@ MyCustomError: Something went wrong
 
 ## Request-Scoped Fiber Context
 
-If you run `effect-orpc` inside a framework such as Hono, the handler executes
+If you run `@chriskite/effect-orpc` inside a framework such as Hono, the handler executes
 through the runtime boundary and will not automatically inherit request-local
 `FiberRef` state from outer middleware.
 
 To preserve request-scoped logs, tracing annotations, and
 other fiber-local state, wrap the framework continuation with `withFiberContext` from
-`effect-orpc/node`.
+`@chriskite/effect-orpc/node`.
 
 ```ts
 import { Hono } from "hono";
 import { Effect, ManagedRuntime } from "effect";
-import { makeEffectORPC } from "effect-orpc";
-import { withFiberContext } from "effect-orpc/node";
+import { makeEffectORPC } from "@chriskite/effect-orpc";
+import { withFiberContext } from "@chriskite/effect-orpc/node";
 
 const runtime = ManagedRuntime.make(AppLive);
 const effectOs = makeEffectORPC(runtime);
@@ -303,7 +303,7 @@ app.use("*", async (c, next) => {
 ```
 
 When a captured fiber context and the `ManagedRuntime` both provide the same
-service, `effect-orpc` prioritizes the captured context. The runtime is treated
+service, `@chriskite/effect-orpc` prioritizes the captured context. The runtime is treated
 as the application-wide base layer, while `withFiberContext` preserves the
 more specific request-scoped values from outer middleware. This prevents
 request-local references such as request IDs, logging annotations, tracing
@@ -324,7 +324,7 @@ If you do not need framework-to-handler fiber propagation, you do not need the
 ≥ 18 and Bun ≥ 1.2.
 
 On runtimes without `node:async_hooks` (Cloudflare Workers, browser, some Deno
-configurations), the `effect-orpc/node` entrypoint is unimportable. If you
+configurations), the `@chriskite/effect-orpc/node` entrypoint is unimportable. If you
 import it indirectly through bundled code, the bridge is never installed and
 `withFiberContext` silently no-ops — handlers will not see captured FiberRefs.
 There is no error; the only symptom is that request-scoped log annotations,
@@ -372,7 +372,7 @@ directly from an oRPC builder.
 
 ```ts
 import { Effect, ManagedRuntime } from "effect";
-import { eoc, implementEffect } from "effect-orpc";
+import { eoc, implementEffect } from "@chriskite/effect-orpc";
 import z from "zod";
 
 class UsersRepo extends Effect.Service<UsersRepo>()("UsersRepo", {
