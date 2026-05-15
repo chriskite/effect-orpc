@@ -77,15 +77,9 @@ export function getEffectInternals<TUpstream extends object>(
   target: EffectProxyTarget<TUpstream>,
 ): EffectInternals<TUpstream> {
   const internals = target[effectInternalsSymbol];
-  if (
-    internals === undefined ||
-    typeof internals !== "object" ||
-    !("upstream" in internals) ||
-    !("state" in internals) ||
-    !("methodCache" in internals)
-  ) {
+  if (internals === undefined) {
     throw new TypeError(
-      "Object is not an effect-orpc builder/procedure: missing or malformed internal state.",
+      "Object is not an effect-orpc builder/procedure: missing internal state.",
     );
   }
   return internals;

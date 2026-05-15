@@ -100,7 +100,7 @@ describe("cancellation", () => {
 
   it("still reports INTERNAL_SERVER_ERROR for non-abort interrupts", async () => {
     // Synthesize an Interrupt cause without an aborted signal — the cause maps to 500.
-    const cause = Cause.interrupt(123 as never as never);
+    const cause = Cause.interrupt(123 as never);
     const error = toORPCErrorFromCause(cause);
     expect(error.code).toBe("INTERNAL_SERVER_ERROR");
     expect(error.status).toBe(500);
@@ -109,7 +109,7 @@ describe("cancellation", () => {
   it("uses the DOM-default abort reason when no explicit reason is provided", async () => {
     const controller = new AbortController();
     controller.abort();
-    const cause = Cause.interrupt(1 as never as never);
+    const cause = Cause.interrupt(1 as never);
     const error = toORPCErrorFromCause(cause, controller.signal);
     expect(error.code).toBe("CLIENT_CLOSED_REQUEST");
     expect(error.status).toBe(499);
@@ -122,7 +122,7 @@ describe("cancellation", () => {
       aborted: true,
       reason: undefined,
     } as unknown as AbortSignal;
-    const cause = Cause.interrupt(1 as never as never);
+    const cause = Cause.interrupt(1 as never);
     const error = toORPCErrorFromCause(cause, fakeSignal);
     expect(error.code).toBe("CLIENT_CLOSED_REQUEST");
     expect(error.status).toBe(499);
@@ -134,7 +134,7 @@ describe("cancellation", () => {
     const controller = new AbortController();
     const reason = new Error("user-cancelled");
     controller.abort(reason);
-    const cause = Cause.interrupt(1 as never as never);
+    const cause = Cause.interrupt(1 as never);
     const error = toORPCErrorFromCause(cause, controller.signal);
     expect(error.code).toBe("CLIENT_CLOSED_REQUEST");
     expect(error.cause).toBe(reason);
@@ -157,12 +157,15 @@ describe("combineCauses (Cause Sequential/Parallel)", () => {
     expect(agg.errors).toEqual([leftError, rightError]);
   });
 
-  it("preserves a single tagged-error left when right has no cause", () => {
+  it("preserves the tagged-error code/status when combined with an interrupt", () => {
     class CustomError extends ORPCTaggedError("CustomError", {
       status: 400,
     }) {}
     const tagged = new CustomError();
-    // Build a Sequential cause where right is an interrupt (no cause attached after mapping)
+    // Sequential of a tagged-error fail and an interrupt: the left's
+    // code/status/data identify the failure; the synthetic interrupt cause
+    // is folded into ORPCError.cause via AggregateError, but the surfaced
+    // error stays the tagged one.
     const cause = Cause.sequential(
       Cause.fail(tagged),
       Cause.interrupt(1 as never),

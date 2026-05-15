@@ -258,23 +258,23 @@ const PACKAGE_FRAME_MARKERS = [
   "/packages/effect-orpc/src/",
 ];
 
-const RESOLVED_EMPTY = Symbol("addSpanStackTrace.empty");
-type ResolvedEmpty = typeof RESOLVED_EMPTY;
-
 /**
  * Captures the stack trace at the call site for better error reporting in spans.
  * This is called at procedure definition time to capture where the procedure was defined.
+ *
+ * The cache uses three states: `undefined` = not yet resolved, `null` = resolved
+ * to no user frame, `string` = resolved user frame.
  */
 export function addSpanStackTrace(): () => string | undefined {
   const traceError = new Error();
-  let cache: string | ResolvedEmpty | undefined;
+  let cache: string | null | undefined;
   return () => {
     if (cache !== undefined) {
-      return cache === RESOLVED_EMPTY ? undefined : cache;
+      return cache ?? undefined;
     }
     const stack = traceError.stack;
     if (stack === undefined) {
-      cache = RESOLVED_EMPTY;
+      cache = null;
       return;
     }
     const lines = stack.split("\n");
@@ -293,7 +293,7 @@ export function addSpanStackTrace(): () => string | undefined {
       cache = trimmed;
       return cache;
     }
-    cache = RESOLVED_EMPTY;
+    cache = null;
     return;
   };
 }
