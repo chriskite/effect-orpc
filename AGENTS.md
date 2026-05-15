@@ -37,10 +37,6 @@ When your changes create orphans:
 - Remove imports/variables/functions that YOUR changes made unused.
 - Don't remove pre-existing dead code unless asked.
 
-The test: Every changed line should trace directly to the user's request.
-
-We very rarely write test files, so by default you should not think about test coverage if not mentionned explicitely by the user.
-
 ## Vendored Repositories
 
 This project vendors external repositories under `@repos/`
