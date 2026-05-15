@@ -5,10 +5,10 @@ import { Effect, FiberRef, Layer, ManagedRuntime } from "effect";
 import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import z from "zod";
 
-import { EffectBuilder, makeEffectORPC } from "../effect-builder";
-import { EffectDecoratedProcedure } from "../effect-procedure";
-import { withFiberContext } from "../node";
-import { effectErrorMapToErrorMap, ORPCTaggedError } from "../tagged-error";
+import { EffectBuilder, makeEffectORPC } from "../src/effect-builder";
+import { EffectDecoratedProcedure } from "../src/effect-procedure";
+import { withFiberContext } from "../src/node";
+import { effectErrorMapToErrorMap, ORPCTaggedError } from "../src/tagged-error";
 import {
   baseErrorMap,
   baseMeta,

@@ -13,7 +13,7 @@ import {
   EffectBuilder,
   EffectDecoratedProcedure,
   makeEffectORPC,
-} from "../index";
+} from "../src/index";
 import type { CurrentContext, InitialContext } from "./parity-shared";
 import { runtime } from "./parity-shared";
 import type { AssertExtends } from "./shared";

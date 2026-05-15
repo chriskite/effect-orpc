@@ -9,7 +9,7 @@ import {
   ORPCTaggedError,
   type TagToCode,
   toORPCError,
-} from "../tagged-error";
+} from "../src/tagged-error";
 
 // Define test errors with explicit code
 class UserNotFoundError extends ORPCTaggedError("UserNotFoundError", {
@@ -104,7 +104,7 @@ describe("class ORPCTaggedError", () => {
 
     it("should throw on invalid status", () => {
       expect(() => new UserNotFoundError({ status: 200 })).toThrow(
-        "[ORPCTaggedError] Invalid error status code.",
+        /\[ORPCTaggedError\] Invalid error status code/,
       );
     });
   });

@@ -1,7 +1,7 @@
 import type { Middleware, MiddlewareOutputFn, Procedure } from "@orpc/server";
 import { describe, expectTypeOf, it } from "vitest";
 
-import { makeEffectORPC } from "../index";
+import { makeEffectORPC } from "../src/index";
 import type { CurrentContext, InitialContext } from "./parity-shared";
 import { runtime } from "./parity-shared";
 import {

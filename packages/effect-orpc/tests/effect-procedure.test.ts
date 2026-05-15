@@ -3,7 +3,7 @@ import { Layer, ManagedRuntime } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import z from "zod";
 
-import { EffectDecoratedProcedure } from "../effect-procedure";
+import { EffectDecoratedProcedure } from "../src/effect-procedure";
 import {
   baseErrorMap,
   baseMeta,

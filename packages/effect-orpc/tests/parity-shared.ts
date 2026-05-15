@@ -1,6 +1,6 @@
 import { Layer, ManagedRuntime } from "effect";
 
-import { eoc } from "../index";
+import { eoc } from "../src/index";
 import {
   baseErrorMap,
   baseMeta,

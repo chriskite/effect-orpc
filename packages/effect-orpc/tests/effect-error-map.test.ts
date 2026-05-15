@@ -3,19 +3,19 @@ import { Effect, Layer, ManagedRuntime } from "effect";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
-import { makeEffectORPC } from "../effect-builder";
+import { makeEffectORPC } from "../src/effect-builder";
 import type {
   EffectErrorMap,
   EffectErrorMapToUnion,
   ORPCTaggedErrorInstance,
-} from "../tagged-error";
+} from "../src/tagged-error";
 import {
   createEffectErrorConstructorMap,
   effectErrorMapToErrorMap,
   isORPCTaggedError,
   isORPCTaggedErrorClass,
   ORPCTaggedError,
-} from "../tagged-error";
+} from "../src/tagged-error";
 
 const userNotFoundSchema = z.object({ userId: z.string() });
 class UserNotFoundError extends ORPCTaggedError("UserNotFoundError", {

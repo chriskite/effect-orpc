@@ -7,8 +7,8 @@ import type {
   EffectImplementer,
   EffectImplementerInternal,
   EffectProcedureImplementer,
-} from "../index";
-import { implementEffect } from "../index";
+} from "../src/index";
+import { implementEffect } from "../src/index";
 import type { CurrentContext, InitialContext } from "./parity-shared";
 import { runtime, typedContract } from "./parity-shared";
 import type { AssertExtends } from "./shared";

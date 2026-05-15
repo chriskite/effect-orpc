@@ -318,6 +318,51 @@ runtime-agnostic.
 If you do not need framework-to-handler fiber propagation, you do not need the
 `/node` entrypoint at all.
 
+### Runtime requirements
+
+`withFiberContext` requires `node:async_hooks`. It is supported on Node.js
+≥ 18 and Bun ≥ 1.2.
+
+On runtimes without `node:async_hooks` (Cloudflare Workers, browser, some Deno
+configurations), the `effect-orpc/node` entrypoint is unimportable. If you
+import it indirectly through bundled code, the bridge is never installed and
+`withFiberContext` silently no-ops — handlers will not see captured FiberRefs.
+There is no error; the only symptom is that request-scoped log annotations,
+trace context, etc. won't appear in handler output. If you target an edge
+runtime today, omit `withFiberContext` and pass per-request context through
+your `ManagedRuntime` layer or explicit handler arguments.
+
+Note: `Effect.promise` does not propagate Effect interruption to the underlying
+Promise. This is safe in `withFiberContext` today because the wrapped function
+is the framework continuation (e.g. `next()` from Hono) which completes when
+the response is sent. If you wrap longer-running async work, interruption from
+an outer Effect will not cancel it; use `Effect.async` with an explicit abort
+callback instead.
+
+### Single-runtime expectation
+
+The `AsyncLocalStorage` used by `withFiberContext` is module-scoped. If your
+application instantiates two `ManagedRuntime` instances (e.g. one for HTTP
+requests, one for a background worker) and both use `withFiberContext`, they
+share the same storage and a worker can read an HTTP handler's request-scoped
+FiberRefs. For applications with multiple runtimes, isolate request-scoped
+FiberRefs per runtime (e.g. by namespacing the keys you store) or restrict
+`withFiberContext` to a single runtime.
+
+### Lifecycle: runtime is application-scoped, requests aren't
+
+The `ManagedRuntime` you pass to `makeEffectORPC` or `implementEffect` lives
+for the lifetime of the process and is shared across every request handler the
+builder produces. This means:
+
+- Layers that compose into the runtime (e.g. database connection pool, config
+  service) live as long as the runtime.
+- Resources that should be per-request belong **inside the handler** as
+  `Effect.acquireRelease` / `Effect.ensuring` — they are scoped to the request
+  fiber and are released when the fiber completes or is interrupted.
+- Calling `runtime.dispose()` is a graceful shutdown: in-flight requests run
+  to completion. Subsequent requests reject with `INTERNAL_SERVER_ERROR`.
+
 ## Contract-First Usage
 
 Use `implementEffect(contract, runtime)` when you already have an oRPC contract
@@ -443,6 +488,7 @@ Wraps an oRPC Builder with Effect support. Available methods:
 | `.$meta(meta)`      | Set or override the initial metadata                                            |
 | `.$route(route)`    | Set or override the initial route configuration                                 |
 | `.$input(schema)`   | Set or override the initial input schema                                        |
+| `.middleware(fn)`   | Create a reusable middleware bound to this builder's context/meta/error map     |
 | `.errors(map)`      | Add type-safe custom errors                                                     |
 | `.meta(meta)`       | Set procedure metadata (merged with existing)                                   |
 | `.route(route)`     | Configure OpenAPI route (merged with existing)                                  |

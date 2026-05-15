@@ -3,9 +3,9 @@ import { Layer, ManagedRuntime } from "effect";
 import { describe, expect, it } from "vitest";
 import z from "zod";
 
-import { EffectBuilder, makeEffectORPC } from "../effect-builder";
-import { EffectDecoratedProcedure } from "../effect-procedure";
-import { ORPCTaggedError } from "../tagged-error";
+import { EffectBuilder, makeEffectORPC } from "../src/effect-builder";
+import { EffectDecoratedProcedure } from "../src/effect-procedure";
+import { ORPCTaggedError } from "../src/tagged-error";
 const runtime = ManagedRuntime.make(Layer.empty);
 
 function makeCustomBuilder(meta: Record<string, unknown> = {}): {

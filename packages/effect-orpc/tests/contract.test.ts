@@ -4,8 +4,8 @@ import { Effect, FiberRef, Layer, ManagedRuntime } from "effect";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import z from "zod";
 
-import { eoc, implementEffect, ORPCTaggedError } from "../index";
-import { withFiberContext } from "../node";
+import { eoc, implementEffect, ORPCTaggedError } from "../src/index";
+import { withFiberContext } from "../src/node";
 
 class Counter extends Effect.Tag("Counter")<
   Counter,

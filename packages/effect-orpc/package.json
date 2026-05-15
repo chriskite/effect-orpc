@@ -1,12 +1,17 @@
 {
   "name": "effect-orpc",
   "version": "0.2.2",
+  "description": "A type-safe integration between oRPC and Effect, enabling Effect-native procedures with service injection, OpenTelemetry tracing, and typesafe Effect errors.",
   "keywords": [
     "effect",
     "orpc",
     "utopy",
     "utopyin"
   ],
+  "homepage": "https://github.com/utopyin/effect-orpc#readme",
+  "bugs": {
+    "url": "https://github.com/utopyin/effect-orpc/issues"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -15,10 +20,12 @@
   "files": [
     "dist",
     "LICENSE",
-    "README.md",
-    "src"
+    "README.md"
   ],
   "type": "module",
+  "sideEffects": [
+    "./dist/node.js"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./node": "./src/node.ts"
@@ -26,11 +33,11 @@
   "publishConfig": {
     "exports": {
       ".": {
-        "types": "./src/index.ts",
+        "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       },
       "./node": {
-        "types": "./src/node.ts",
+        "types": "./dist/node.d.ts",
         "default": "./dist/node.js"
       }
     }
@@ -43,7 +50,7 @@
     "format:check": "oxfmt --check",
     "check": "bun run format:check && bun run lint:check && bun run type:check",
     "format": "oxfmt",
-    "test": "vitest ./src/tests",
+    "test": "vitest ./tests",
     "sync:readme": "bun ../../scripts/sync-package-readme.ts"
   },
   "devDependencies": {
@@ -56,11 +63,15 @@
     "zod": "^4.3.4"
   },
   "peerDependencies": {
-    "@orpc/client": ">=1.13.0",
-    "@orpc/contract": ">=1.13.0",
-    "@orpc/server": ">=1.13.0",
-    "@orpc/shared": ">=1.13.0",
-    "effect": ">=3.18.0",
+    "@orpc/client": "^1.13.0",
+    "@orpc/contract": "^1.13.0",
+    "@orpc/server": "^1.13.0",
+    "@orpc/shared": "^1.13.0",
+    "effect": "^3.18.0",
     "typescript": "^5"
+  },
+  "engines": {
+    "bun": ">=1.2",
+    "node": ">=20"
   }
 }

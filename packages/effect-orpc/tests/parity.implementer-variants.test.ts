@@ -10,7 +10,7 @@ import type {
 } from "@orpc/server";
 import { describe, expectTypeOf, it } from "vitest";
 
-import { implementEffect } from "../index";
+import { implementEffect } from "../src/index";
 import type { InitialContext } from "./parity-shared";
 import { runtime, typedContract } from "./parity-shared";
 import {

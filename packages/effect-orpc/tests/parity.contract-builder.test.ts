@@ -1,7 +1,8 @@
 import { ContractBuilder, isContractProcedure } from "@orpc/contract";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { effectErrorMapToErrorMap, eoc } from "../index";
+import { eoc } from "../src/index";
+import { effectErrorMapToErrorMap } from "../src/tagged-error";
 import {
   baseErrorMap,
   baseMeta,

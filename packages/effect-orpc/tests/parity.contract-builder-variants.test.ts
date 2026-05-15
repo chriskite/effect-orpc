@@ -4,8 +4,8 @@ import { describe, expectTypeOf, it } from "vitest";
 import type {
   EffectContractProcedureBuilderWithInputOutput,
   EffectContractRouterBuilder,
-} from "../index";
-import { eoc } from "../index";
+} from "../src/index";
+import { eoc } from "../src/index";
 import {
   type BaseMeta,
   baseErrorMap,
