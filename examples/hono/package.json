@@ -22,7 +22,7 @@
     "@types/bun": "latest",
     "effect": "^3.19.14",
     "hono": "^4.11.4",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "catalog:",
     "zod": "^4.3.5"
   }
