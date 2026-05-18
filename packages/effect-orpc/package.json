@@ -25,19 +25,13 @@
     "./dist/node.js"
   ],
   "exports": {
-    ".": "./src/index.ts",
-    "./node": "./src/node.ts"
-  },
-  "publishConfig": {
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "./node": {
-        "types": "./dist/node.d.ts",
-        "default": "./dist/node.js"
-      }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
     }
   },
   "scripts": {
