@@ -25,7 +25,11 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+
+    // TS 6 deprecates `baseUrl`; tsup's internal DTS pipeline still passes
+    // it through rollup-plugin-dts. Silence the error until tsup updates.
+    "ignoreDeprecations": "6.0"
   },
   "exclude": ["dist", "node_modules"]
 }
