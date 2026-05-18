@@ -23,7 +23,7 @@ It demonstrates:
 ```bash
 cd /path/to/effect-orpc
 bun install
-cd examples/hono-request-context
+cd examples/hono
 bun start
 ```
 
@@ -68,7 +68,7 @@ returns typed `UNAUTHORIZED` / `FORBIDDEN` responses for restricted operations.
 To override the port:
 
 ```bash
-cd /path/to/effect-orpc/examples/hono-request-context
+cd /path/to/effect-orpc/examples/hono
 PORT=43123 bun start
 ```
 

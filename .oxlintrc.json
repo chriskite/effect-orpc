@@ -5,5 +5,5 @@
     "require-yield": "off",
     "no-unused-vars": "error"
   },
-  "ignorePatterns": ["repos/**"]
+  "ignorePatterns": ["repos/**", "effect/**", "orpc/**", "**/dist/**"]
 }

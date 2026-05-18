@@ -5,7 +5,7 @@ import type {
   ProcedureHandlerOptions,
 } from "@orpc/server";
 import type { ManagedRuntime } from "effect";
-import { Cause, Effect, Exit, FiberRefs } from "effect";
+import { Cause, Effect, Exit } from "effect";
 
 import { getCurrentFiberRefs } from "./fiber-context-bridge";
 import type { EffectErrorConstructorMap, EffectErrorMap } from "./tagged-error";
@@ -17,11 +17,22 @@ import type { EffectProcedureHandler, EffectSpanConfig } from "./types";
 
 export function toORPCErrorFromCause(
   cause: Cause.Cause<unknown>,
+  signal?: AbortSignal,
 ): ORPCError<string, unknown> {
+  if (Cause.isInterruptedOnly(cause)) {
+    if (signal?.aborted) {
+      return new ORPCError("CLIENT_CLOSED_REQUEST", {
+        cause: abortReasonToError(signal.reason),
+      });
+    }
+    return new ORPCError("INTERNAL_SERVER_ERROR", {
+      cause: new Error("Effect fiber interrupted"),
+    });
+  }
   return Cause.match(cause, {
     onDie(defect) {
       return new ORPCError("INTERNAL_SERVER_ERROR", {
-        cause: defect,
+        cause: defect instanceof Error ? defect : new Error(String(defect)),
       });
     },
     onFail(error) {
@@ -36,19 +47,51 @@ export function toORPCErrorFromCause(
       });
     },
     onInterrupt(fiberId) {
+      // Interrupt mixed with non-interrupt causes — keep as 500 to surface the real failure.
       return new ORPCError("INTERNAL_SERVER_ERROR", {
-        cause: new Error(`${fiberId} Interrupted`),
+        cause: new Error(`Effect fiber ${fiberId} interrupted`),
       });
     },
-    onSequential(left) {
-      return left;
-    },
+    onSequential: combineCauses,
     onEmpty: new ORPCError("INTERNAL_SERVER_ERROR", {
       cause: new Error("Unknown error"),
     }),
-    onParallel(left) {
-      return left;
-    },
+    onParallel: combineCauses,
+  });
+}
+
+function abortReasonToError(reason: unknown): Error {
+  if (reason instanceof Error) {
+    return reason;
+  }
+  if (reason === undefined) {
+    return new Error("Client aborted request");
+  }
+  return new Error(String(reason));
+}
+
+function combineCauses(
+  left: ORPCError<string, unknown>,
+  right: ORPCError<string, unknown>,
+): ORPCError<string, unknown> {
+  const leftCause = left.cause;
+  const rightCause = right.cause;
+  if (rightCause === undefined || rightCause === leftCause) {
+    return left;
+  }
+  const aggregated =
+    leftCause === undefined
+      ? rightCause
+      : new AggregateError(
+          [leftCause, rightCause],
+          "Effect cause contained multiple failures",
+        );
+  return new ORPCError(left.code, {
+    defined: left.defined,
+    status: left.status,
+    message: left.message,
+    data: left.data,
+    cause: aggregated,
   });
 }
 
@@ -107,18 +150,24 @@ export function createEffectProcedureHandler<
     const spanName = spanConfig?.name ?? opts.path.join(".");
     const captureStackTrace =
       spanConfig?.captureStackTrace ?? defaultCaptureStackTrace;
-    const resolver = Effect.fnUntraced(effectFn as any);
+    // `Effect.fnUntraced` accepts both generator and async functions; the
+    // intersection of those over our `EffectProcedureHandler` shape is wider
+    // than the type system can express. Cast through `unknown` at the boundary.
+    const resolver = Effect.fnUntraced(
+      effectFn as unknown as Parameters<typeof Effect.fnUntraced>[0],
+    );
     const tracedEffect = Effect.withSpan(resolver(effectOpts), spanName, {
       captureStackTrace,
     });
-    const parentFiberRefs = getCurrentFiberRefs();
-    const effectWithRefs = parentFiberRefs
-      ? Effect.fiberIdWith((fiberId) =>
-          Effect.flatMap(Effect.getFiberRefs, (fiberRefs) =>
-            Effect.setFiberRefs(
-              FiberRefs.joinAs(fiberRefs, fiberId, parentFiberRefs),
-            ).pipe(Effect.andThen(tracedEffect)),
-          ),
+    // Inherit captured request-scoped FiberRefs (set up by withFiberContext)
+    // into the runtime fiber. The captured refs override the runtime's refs
+    // on conflict — matches the README guarantee that request-scoped state
+    // shadows application-scoped state.
+    const capturedFiberRefs = getCurrentFiberRefs();
+    const effectWithRefs = capturedFiberRefs
+      ? Effect.zipRight(
+          Effect.inheritFiberRefs(capturedFiberRefs),
+          tracedEffect,
         )
       : tracedEffect;
     const exit = await runtime.runPromiseExit(effectWithRefs, {
@@ -126,7 +175,7 @@ export function createEffectProcedureHandler<
     });
 
     if (Exit.isFailure(exit)) {
-      throw toORPCErrorFromCause(exit.cause);
+      throw toORPCErrorFromCause(exit.cause, opts.signal);
     }
 
     return exit.value as TOutput;

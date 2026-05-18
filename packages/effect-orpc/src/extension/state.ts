@@ -3,6 +3,23 @@ import type { ManagedRuntime } from "effect";
 import type { EffectErrorMap } from "../tagged-error";
 import type { EffectSpanConfig } from "../types";
 
+/**
+ * Effect-augmented builders/procedures carry two parallel "internal" slots:
+ *
+ * - `~orpc` — the upstream oRPC `def` (errorMap, middlewares, schemas, etc).
+ *   This is the canonical source of identity and is what oRPC machinery
+ *   reads when it doesn't know about effect-orpc.
+ * - `~effect` — adds `effectErrorMap`, `runtime`, and optional `spanConfig`
+ *   on top of the upstream def. Read this when you need Effect-specific
+ *   metadata (tagged-error classes, the runtime for handler dispatch).
+ *
+ * In addition, this module manages a third store keyed by
+ * `effectInternalsSymbol`, used by the Proxy wrappers to cache derived
+ * method implementations and to look up upstream/state without re-walking
+ * the prototype chain. Treat the symbol-keyed slot as private to this
+ * package.
+ */
+
 export interface EffectExtensionState<
   TRequirementsProvided = any,
   TRuntimeError = any,
@@ -59,7 +76,13 @@ export function attachEffectState<
 export function getEffectInternals<TUpstream extends object>(
   target: EffectProxyTarget<TUpstream>,
 ): EffectInternals<TUpstream> {
-  return target[effectInternalsSymbol];
+  const internals = target[effectInternalsSymbol];
+  if (internals === undefined) {
+    throw new TypeError(
+      "Object is not an effect-orpc builder/procedure: missing internal state.",
+    );
+  }
+  return internals;
 }
 
 export function getEffectUpstream<TUpstream extends object>(

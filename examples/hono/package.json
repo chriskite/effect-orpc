@@ -7,6 +7,7 @@
     "test": "vitest *.test.ts"
   },
   "dependencies": {
+    "@chriskite/effect-orpc": "workspace:*",
     "@effect/opentelemetry": "^0.60.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.210.0",
     "@opentelemetry/sdk-metrics": "^2.4.0",
@@ -20,7 +21,6 @@
     "@orpc/zod": "^1.13.4",
     "@types/bun": "latest",
     "effect": "^3.19.14",
-    "effect-orpc": "workspace:*",
     "hono": "^4.11.4",
     "typescript": "^5.9.3",
     "vitest": "catalog:",

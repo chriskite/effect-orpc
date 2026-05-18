@@ -1,0 +1,29 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      orpc:
+        patterns:
+          - "@orpc/*"
+      effect:
+        patterns:
+          - "effect"
+          - "@effect/*"
+      dev-tools:
+        patterns:
+          - "oxlint"
+          - "oxfmt"
+          - "tsup"
+          - "vitest"
+          - "turbo"
+          - "ultracite"
+          - "@changesets/*"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

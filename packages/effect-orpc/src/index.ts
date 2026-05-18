@@ -13,15 +13,9 @@ export type {
   EffectContractProcedureBuilderWithOutput,
   EffectContractRouterBuilder,
 } from "./eoc";
-export {
-  addSpanStackTrace,
-  EffectBuilder,
-  makeEffectORPC,
-} from "./effect-builder";
+export { EffectBuilder, makeEffectORPC } from "./effect-builder";
 export { EffectDecoratedProcedure } from "./effect-procedure";
 export {
-  createEffectErrorConstructorMap,
-  effectErrorMapToErrorMap,
   isORPCTaggedError,
   isORPCTaggedErrorClass,
   ORPCErrorSymbol,

@@ -258,7 +258,9 @@ export function ORPCTaggedError<
     code?: TCode;
   },
 ): ORPCTaggedErrorClass<TTag, TCode, TSchema> {
-  const code: TCode = props?.code ?? (toConstantCase(tag) as any);
+  // TS can't compute the literal-string result of `toConstantCase` at type
+  // level, so we cast through `unknown` to the declared `TCode`.
+  const code: TCode = props?.code ?? (toConstantCase(tag) as unknown as TCode);
   class ORPCTaggedErrorBase
     extends Data.TaggedError(tag)
     implements ORPCTaggedErrorInstance<TTag, TCode, TSchema>
@@ -281,9 +283,9 @@ export function ORPCTaggedError<
       const status = opts.status ?? props?.status;
 
       if (status !== undefined && !isORPCErrorStatus(status)) {
-        throw new globalThis.Error(
-          "[ORPCTaggedError] Invalid error status code.",
-        );
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: `[ORPCTaggedError] Invalid error status code: ${String(status)}`,
+        });
       }
 
       this.status = fallbackORPCErrorStatus(code, status);
@@ -504,6 +506,13 @@ export function createEffectErrorConstructorMap<T extends EffectErrorMap>(
 /**
  * Converts an EffectErrorMap to a standard oRPC ErrorMap for interop.
  * Tagged error classes are converted to their equivalent ErrorMapItem format.
+ *
+ * Contract for tagged error subclasses passed to this function: the class
+ * must remain instantiable with zero arguments, and its constructor must be
+ * side-effect free. This function instantiates each class once to extract
+ * `code`, `status`, `message`, and `schema`; a constructor that requires
+ * arguments or has observable side effects will fail or fire spuriously
+ * every time an error map is converted.
  */
 export function effectErrorMapToErrorMap<T extends EffectErrorMap>(
   errorMap: T | undefined,

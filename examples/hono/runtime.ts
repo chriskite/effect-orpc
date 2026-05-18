@@ -6,7 +6,7 @@ import { Layer, Logger, LogLevel, ManagedRuntime } from "effect";
 import { OrderService } from "./services/order";
 
 const NodeSdkLive = NodeSdk.layer(() => ({
-  resource: { serviceName: "effect-orpc-hono-request-context" },
+  resource: { serviceName: "effect-orpc-hono" },
   spanProcessor: new BatchSpanProcessor(
     new OTLPTraceExporter({
       url: "http://localhost:4318/v1/traces",

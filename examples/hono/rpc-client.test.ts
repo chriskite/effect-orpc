@@ -67,6 +67,33 @@ describe("Hono example RPC client", () => {
     });
   });
 
+  test("preserves typed error data over the wire for tagged errors", async () => {
+    const client = createContractClient({
+      "x-role": "operator",
+      "x-request-id": "req-missing-order",
+    });
+
+    try {
+      // The `MISSING` order id is normalized to `MISSING` and the OrderService
+      // returns status "not found", which triggers errors.NOT_FOUND with a
+      // tagged-error `data: { orderId }` payload.
+      await client.orders.find({ orderId: "MISSING" });
+      throw new Error("Expected find(missing) to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ORPCError);
+      expect(error).toMatchObject({
+        code: "NOT_FOUND",
+        status: 404,
+      });
+      // The `data` payload must round-trip through the wire intact.
+      expect(
+        (error as ORPCError<"NOT_FOUND", { orderId: string }>).data,
+      ).toEqual({
+        orderId: "MISSING",
+      });
+    }
+  });
+
   test("returns a typed UNAUTHORIZED error without an explicit role", async () => {
     const client = createContractClient({
       "x-request-id": "req-create-draft",

@@ -413,11 +413,13 @@ function wrapContractNode<
         if (prop === "router" || prop === "lazy") {
           const wrappedMethod = (...args: unknown[]) =>
             enhanceEffectRouter(
+              // Reflect.apply returns unknown; the wrapped function is
+              // guaranteed by the upstream contract to return a Router shape.
               Reflect.apply(
                 Reflect.get(currentTarget, prop, currentTarget),
                 currentTarget,
                 args,
-              ) as any,
+              ) as Parameters<typeof enhanceEffectRouter>[0],
               makeEnhanceOptions(runtime),
             );
 

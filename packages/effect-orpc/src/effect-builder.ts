@@ -169,13 +169,16 @@ function createEffectBuilderProxy(
               return new EffectDecoratedProcedure({
                 ...effectDef,
                 handler: async (opts) => {
+                  // `opts` is contravariant: oRPC passes a wider context
+                  // shape than the handler factory's narrower constraint
+                  // can statically prove compatible.
                   return createEffectProcedureHandler({
                     defaultCaptureStackTrace,
                     effectErrorMap: state.effectErrorMap,
                     effectFn,
                     runtime: state.runtime,
                     spanConfig: state.spanConfig,
-                  })(opts as any);
+                  })(opts as unknown as never);
                 },
               });
             };
@@ -215,7 +218,9 @@ function createEffectBuilderProxy(
         case "router":
           return getOrCreateVirtualMethod(context, prop, () => {
             return (router: Router<ContractRouter<any>, any>) =>
-              enhanceEffectRouter(router, effectDef) as any;
+              // enhanceEffectRouter returns the structural enhanced shape; the
+              // declared return type from the virtual method is generic.
+              enhanceEffectRouter(router, effectDef) as unknown;
           });
         case "lazy":
           return getOrCreateVirtualMethod(context, prop, () => {
@@ -223,7 +228,10 @@ function createEffectBuilderProxy(
               loader: () => Promise<{
                 default: Router<ContractRouter<any>, any>;
               }>,
-            ) => enhanceEffectRouter(lazy(loader), effectDef) as any;
+            ) =>
+              // Same as above — enhanceEffectRouter is typed at the call site
+              // via the declared method signature, not at the Proxy return.
+              enhanceEffectRouter(lazy(loader), effectDef) as unknown;
           });
         default:
           return unhandled();
@@ -241,30 +249,52 @@ function createEffectBuilderProxy(
   });
 }
 
+// Frames belonging to this package — the captured trace should walk past them
+// and land on the first user frame.
+const PACKAGE_FRAME_MARKERS = [
+  "effect-orpc/dist/",
+  "effect-orpc/src/",
+  "/packages/effect-orpc/dist/",
+  "/packages/effect-orpc/src/",
+];
+
 /**
  * Captures the stack trace at the call site for better error reporting in spans.
  * This is called at procedure definition time to capture where the procedure was defined.
+ *
+ * The cache uses three states: `undefined` = not yet resolved, `null` = resolved
+ * to no user frame, `string` = resolved user frame.
  */
 export function addSpanStackTrace(): () => string | undefined {
-  const ErrorConstructor = Error as typeof Error & {
-    stackTraceLimit?: number;
-  };
-  const limit = ErrorConstructor.stackTraceLimit;
-  ErrorConstructor.stackTraceLimit = 3;
   const traceError = new Error();
-  ErrorConstructor.stackTraceLimit = limit;
-  let cache: false | string = false;
+  let cache: string | null | undefined;
   return () => {
-    if (cache !== false) {
+    if (cache !== undefined) {
+      return cache ?? undefined;
+    }
+    const stack = traceError.stack;
+    if (stack === undefined) {
+      cache = null;
+      return;
+    }
+    const lines = stack.split("\n");
+    // Skip the Error header line. Walk frames; first frame that does not
+    // belong to this package wins.
+    for (let i = 1; i < lines.length; i++) {
+      const frame = lines[i];
+      if (frame === undefined) continue;
+      const trimmed = frame.trim();
+      if (PACKAGE_FRAME_MARKERS.some((marker) => trimmed.includes(marker))) {
+        continue;
+      }
+      if (trimmed.startsWith("at node:internal/")) {
+        continue;
+      }
+      cache = trimmed;
       return cache;
     }
-    if (traceError.stack !== undefined) {
-      const stack = traceError.stack.split("\n");
-      if (stack[3] !== undefined) {
-        cache = stack[3].trim();
-        return cache;
-      }
-    }
+    cache = null;
+    return;
   };
 }
 

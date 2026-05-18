@@ -17,5 +17,11 @@
   "sortPackageJson": true,
   "sortImports": { "ignoreCase": true },
   "embeddedLanguageFormatting": "auto",
-  "ignorePatterns": [".changeset/**", "repos/**"],
+  "ignorePatterns": [
+    ".changeset/**",
+    "repos/**",
+    "effect/**",
+    "orpc/**",
+    "**/dist/**",
+  ],
 }
