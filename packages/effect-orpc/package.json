@@ -1,6 +1,6 @@
 {
   "name": "@chriskite/effect-orpc",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "A type-safe integration between oRPC and Effect, enabling Effect-native procedures with service injection, OpenTelemetry tracing, and typesafe Effect errors.",
   "keywords": [
     "effect",
