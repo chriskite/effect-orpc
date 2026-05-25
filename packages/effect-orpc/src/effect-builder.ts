@@ -10,6 +10,7 @@ import { Builder, fallbackConfig, lazy } from "@orpc/server";
 import type { ManagedRuntime } from "effect";
 
 import { enhanceEffectRouter } from "./effect-enhance-router";
+import { createEffectMiddlewareHandler } from "./effect-middleware-runtime";
 import { EffectDecoratedProcedure } from "./effect-procedure";
 import { createEffectProcedureHandler } from "./effect-runtime";
 import {
@@ -45,6 +46,7 @@ const builderVirtualDescriptors = {
   lazy: { enumerable: false },
   router: { enumerable: false },
   traced: { enumerable: false },
+  useEffect: { enumerable: false },
 } as const;
 
 const builderVirtualKeys = [
@@ -55,6 +57,7 @@ const builderVirtualKeys = [
   "handler",
   "router",
   "lazy",
+  "useEffect",
 ] as const;
 
 type EffectBuilderTarget = EffectBuilder<
@@ -193,6 +196,35 @@ function createEffectBuilderProxy(
                   name: spanName,
                 },
               });
+          });
+        case "useEffect":
+          return getOrCreateVirtualMethod(context, prop, () => {
+            return (
+              effectFn: Parameters<
+                EffectBuilderSurface<
+                  any,
+                  any,
+                  any,
+                  any,
+                  any,
+                  any,
+                  any,
+                  any
+                >["useEffect"]
+              >[0],
+            ) => {
+              const middleware = createEffectMiddlewareHandler({
+                effectErrorMap: state.effectErrorMap,
+                effectFn,
+                runtime: state.runtime,
+              });
+              const nextBuilder: AnyBuilderLike = Reflect.apply(
+                Reflect.get(source, "use", source),
+                source,
+                [middleware],
+              );
+              return wrapBuilderLike(nextBuilder, state);
+            };
           });
         case "handler":
           return getOrCreateVirtualMethod(context, prop, () => {
@@ -487,6 +519,26 @@ export class EffectBuilder<
     TRequirementsProvided,
     TRuntimeError
   >["use"];
+  /**
+   * Registers an Effect-native middleware. The handler is authored as a
+   * generator that yields effects (mirroring `.effect()` procedures) and
+   * returns the downstream `MiddlewareResult`. Use this when middleware
+   * needs services from the `ManagedRuntime` (auth, rate limiting, audit
+   * logging) and would otherwise have to manually call `Effect.runPromise`
+   * inside a plain oRPC middleware.
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
+  declare useEffect: EffectBuilderSurface<
+    TInitialContext,
+    TCurrentContext,
+    TInputSchema,
+    TOutputSchema,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >["useEffect"];
   /**
    * Sets or updates the metadata.
    * The provided metadata is spared-merged with any existing metadata.

@@ -12,6 +12,10 @@ import type {
   BuilderWithMiddlewares,
   Context,
   EnhanceRouterOptions,
+  MiddlewareNextFnOptions,
+  MiddlewareOptions,
+  MiddlewareOutputFn,
+  MiddlewareResult,
   ProcedureBuilder,
   ProcedureBuilderWithInput,
   ProcedureBuilderWithInputOutput,
@@ -20,6 +24,7 @@ import type {
   ProcedureHandlerOptions,
   RouterBuilder,
 } from "@orpc/server";
+import type { MaybeOptionalOptions } from "@orpc/shared";
 import type { Effect, ManagedRuntime } from "effect";
 import type { YieldWrap } from "effect/Utils";
 
@@ -136,6 +141,81 @@ export type EffectProcedureHandler<
     >
   >,
   THandlerOutput,
+  never
+>;
+
+/**
+ * Effect-shaped continuation for middleware. Mirrors the oRPC
+ * `MiddlewareNextFn` shape but returns an `Effect` instead of a `Promisable`
+ * so that the user's middleware Effect can `yield* next(...)` and stay
+ * inside the Effect composition story.
+ *
+ * The Effect produced by `next` resolves to the downstream
+ * `MiddlewareResult` and surfaces any thrown `ORPCError` as a typed Effect
+ * failure, so middlewares may handle or transform downstream errors with
+ * the usual `Effect.catchAll` / `Effect.catchTag` combinators.
+ */
+export interface EffectMiddlewareNextFn<TOutput> {
+  <U extends Context = Record<never, never>>(
+    ...rest: MaybeOptionalOptions<MiddlewareNextFnOptions<U>>
+  ): Effect.Effect<
+    MiddlewareResult<U, TOutput>,
+    ORPCError<ORPCErrorCode, unknown>
+  >;
+}
+
+/**
+ * Options passed to an Effect middleware. Identical to the oRPC
+ * `MiddlewareOptions` shape except that `next` is Effect-shaped and the
+ * `errors` constructor map understands `ORPCTaggedError` classes from the
+ * surrounding builder's `effectErrorMap`.
+ */
+export type EffectMiddlewareOptions<
+  TInContext extends Context,
+  TOutput,
+  TEffectErrorMap extends EffectErrorMap,
+  TMeta extends Meta,
+> = Omit<
+  MiddlewareOptions<
+    TInContext,
+    TOutput,
+    EffectErrorConstructorMap<TEffectErrorMap>,
+    TMeta
+  >,
+  "next"
+> & {
+  next: EffectMiddlewareNextFn<TOutput>;
+};
+
+/**
+ * Effect-native middleware handler.
+ *
+ * Returns a generator (the same Effect.fnUntraced-compatible shape used for
+ * `.effect()` procedure handlers) that yields effects and ultimately returns
+ * the `MiddlewareResult` of the downstream pipeline.
+ */
+export type EffectMiddlewareHandler<
+  TInContext extends Context,
+  TOutContext extends Context,
+  TInput,
+  TOutput,
+  TEffectErrorMap extends EffectErrorMap,
+  TMeta extends Meta,
+  TRequirementsProvided,
+> = (
+  opt: EffectMiddlewareOptions<TInContext, TOutput, TEffectErrorMap, TMeta>,
+  input: TInput,
+  output: MiddlewareOutputFn<TOutput>,
+) => Generator<
+  YieldWrap<
+    Effect.Effect<
+      any,
+      | EffectErrorMapToUnion<TEffectErrorMap>
+      | ORPCError<ORPCErrorCode, unknown>,
+      TRequirementsProvided
+    >
+  >,
+  MiddlewareResult<TOutContext, TOutput>,
   never
 >;
 

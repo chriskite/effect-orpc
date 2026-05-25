@@ -14,6 +14,7 @@ export type {
   EffectContractRouterBuilder,
 } from "./eoc";
 export { EffectBuilder, makeEffectORPC } from "./effect-builder";
+export { createEffectMiddlewareHandler } from "./effect-middleware-runtime";
 export { EffectDecoratedProcedure } from "./effect-procedure";
 export {
   isORPCTaggedError,
@@ -43,6 +44,9 @@ export type {
   EffectDecoratedProcedureSurface,
   EffectBuilderWithMiddlewares,
   EffectErrorMapToErrorMap,
+  EffectMiddlewareHandler,
+  EffectMiddlewareNextFn,
+  EffectMiddlewareOptions,
   EffectProcedureBuilder,
   EffectProcedureBuilderWithInput,
   EffectProcedureBuilderWithInputOutput,

@@ -17,6 +17,7 @@ import {
 } from "@orpc/server";
 import type { MaybeOptionalOptions } from "@orpc/shared";
 
+import { createEffectMiddlewareHandler } from "./effect-middleware-runtime";
 import { composeSurfaceProxy } from "./extension/compose-surfaces";
 import {
   createNodeProxy,
@@ -30,7 +31,11 @@ import {
 } from "./extension/state";
 import type { EffectErrorMap, MergedEffectErrorMap } from "./tagged-error";
 import { effectErrorMapToErrorMap } from "./tagged-error";
-import type { EffectErrorMapToErrorMap, EffectProcedureDef } from "./types";
+import type {
+  EffectErrorMapToErrorMap,
+  EffectMiddlewareHandler,
+  EffectProcedureDef,
+} from "./types";
 import type { EffectDecoratedProcedureSurface } from "./types/effect-procedure-surface";
 
 type AnyProcedureLike = Procedure<any, any, any, any, any, any>;
@@ -68,6 +73,7 @@ const procedureVirtualDescriptors = {
   meta: { enumerable: false },
   route: { enumerable: false },
   use: { enumerable: false },
+  useEffect: { enumerable: false },
 } as const;
 
 const baseProcedureVirtualKeys = ["~effect"] as const;
@@ -77,6 +83,7 @@ const decoratedProcedureVirtualKeys = [
   "meta",
   "route",
   "use",
+  "useEffect",
   "callable",
   "actionable",
 ] as const;
@@ -173,6 +180,33 @@ function createEffectProcedureProxy<
                 middlewares: addMiddleware(
                   getEffectProcedureDef(context).middlewares,
                   mapped,
+                ),
+              });
+            };
+          });
+        case "useEffect":
+          return getOrCreateVirtualMethod(context, prop, () => {
+            return (
+              effectFn: EffectMiddlewareHandler<
+                any,
+                any,
+                any,
+                any,
+                any,
+                any,
+                any
+              >,
+            ) => {
+              const middleware = createEffectMiddlewareHandler({
+                effectErrorMap: state.effectErrorMap,
+                effectFn,
+                runtime: state.runtime,
+              });
+              return new EffectDecoratedProcedure({
+                ...getEffectProcedureDef(context),
+                middlewares: addMiddleware(
+                  getEffectProcedureDef(context).middlewares,
+                  middleware,
                 ),
               });
             };
@@ -420,6 +454,21 @@ export class EffectDecoratedProcedure<
     TRequirementsProvided,
     TRuntimeError
   >["use"];
+  /**
+   * Registers an Effect-native middleware. See `EffectBuilderSurface.useEffect`.
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
+  declare useEffect: EffectDecoratedProcedureSurface<
+    TInitialContext,
+    TCurrentContext,
+    TInputSchema,
+    TOutputSchema,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >["useEffect"];
   /**
    * Make this procedure callable (works like a function while still being a procedure).
    *

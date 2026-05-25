@@ -19,7 +19,11 @@ import type {
 } from "@orpc/server";
 import type { IntersectPick, MaybeOptionalOptions } from "@orpc/shared";
 
-import type { EffectProcedureDef, EffectErrorMapToErrorMap } from ".";
+import type {
+  EffectMiddlewareHandler,
+  EffectProcedureDef,
+  EffectErrorMapToErrorMap,
+} from ".";
 import type { EffectDecoratedProcedure } from "../effect-procedure";
 import type {
   EffectErrorConstructorMap,
@@ -169,6 +173,34 @@ export interface EffectDecoratedProcedureSurface<
       TMeta
     >,
     mapInput: MapInputMiddleware<InferSchemaOutput<TInputSchema>, UInput>,
+  ): EffectDecoratedProcedure<
+    MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
+    MergedCurrentContext<TCurrentContext, UOutContext>,
+    TInputSchema,
+    TOutputSchema,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
+  /**
+   * Registers an Effect-native middleware. See `EffectBuilderSurface.useEffect`.
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
+  useEffect<
+    UOutContext extends IntersectPick<TCurrentContext, UOutContext>,
+    UInContext extends Context = TCurrentContext,
+  >(
+    middleware: EffectMiddlewareHandler<
+      UInContext | TCurrentContext,
+      UOutContext,
+      InferSchemaOutput<TInputSchema>,
+      InferSchemaInput<TOutputSchema>,
+      TEffectErrorMap,
+      TMeta,
+      TRequirementsProvided
+    >,
   ): EffectDecoratedProcedure<
     MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
     MergedCurrentContext<TCurrentContext, UOutContext>,
