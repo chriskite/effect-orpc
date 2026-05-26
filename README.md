@@ -547,6 +547,14 @@ trace context, etc. won't appear in handler output. If you target an edge
 runtime today, omit `withFiberContext` and pass per-request context through
 your `ManagedRuntime` layer or explicit handler arguments.
 
+If a `.useEffect()` middleware runs while no bridge is installed,
+`@chriskite/effect-orpc` emits a one-time `console.warn` to surface the
+misconfiguration (since the symptom — middleware-set FiberRefs not reaching
+the handler — is otherwise invisible). Import `@chriskite/effect-orpc/node`
+once at startup to silence it, or install a custom bridge via
+`installFiberContextBridge` if you need to integrate a different async-context
+mechanism.
+
 Note: `Effect.promise` does not propagate Effect interruption to the underlying
 Promise. This is safe in `withFiberContext` today because the wrapped function
 is the framework continuation (e.g. `next()` from Hono) which completes when

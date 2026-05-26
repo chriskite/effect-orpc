@@ -1,7 +1,10 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { ORPCError } from "@orpc/client";
 import { call } from "@orpc/server";
 import {
   Effect,
+  type FiberRefs,
   FiberRef,
   HashMap,
   Layer,
@@ -12,8 +15,31 @@ import { describe, expect, it, vi } from "vitest";
 import z from "zod";
 
 import { makeEffectORPC } from "../src/effect-builder";
+import {
+  type FiberContextBridge,
+  installFiberContextBridge,
+} from "../src/fiber-context-bridge";
+// Side-effect import: installs the AsyncLocalStorage-backed fiber-context
+// bridge that carries FiberRefs from middleware fibers into downstream
+// handler fibers. Several tests in this file depend on it being installed.
 import { withFiberContext } from "../src/node";
 import { ORPCTaggedError } from "../src/tagged-error";
+
+/**
+ * Reinstalls a fresh AsyncLocalStorage-backed bridge equivalent to the one
+ * `../src/node` installs at module load. Used to restore the bridge after a
+ * test that intentionally uninstalls it; the bridge is module-scoped global
+ * state and other tests in the suite require it.
+ */
+function installFreshFiberContextBridge(): void {
+  const storage = new AsyncLocalStorage<FiberRefs.FiberRefs>();
+  const bridge: FiberContextBridge = {
+    getCurrentFiberRefs: () => storage.getStore(),
+    runWithFiberRefs: <T>(refs: FiberRefs.FiberRefs, fn: () => T) =>
+      storage.run(refs, fn),
+  };
+  installFiberContextBridge(bridge);
+}
 
 class UnauthorizedError extends ORPCTaggedError("UnauthorizedError", {
   code: "UNAUTHORIZED",
@@ -273,6 +299,86 @@ describe(".useEffect", () => {
     });
 
     await runtime.dispose();
+  });
+
+  it("does not propagate middleware log annotations when the fiber-context bridge is not installed, and warns once", async () => {
+    // Regression test for the production failure mode where a consumer wires
+    // up `.useEffect()` with `Effect.annotateLogs` on `next()` but never
+    // imports `@chriskite/effect-orpc/node`. Without the bridge, middleware
+    // FiberRefs do not cross the Promise gap into the handler fiber and log
+    // annotations silently fail to appear in handler log entries. The
+    // runtime emits a one-time `console.warn` to surface this misconfiguration
+    // since the symptom is otherwise invisible.
+    //
+    // The bridge is module-scoped global state; we forcibly uninstall it for
+    // the duration of this test and reinstall a fresh equivalent afterwards
+    // so subsequent tests in the file still see propagation work.
+    type CapturedLog = {
+      message: unknown;
+      annotations: Record<string, unknown>;
+    };
+    const captured: CapturedLog[] = [];
+
+    const captureLogger = Logger.make(({ message, annotations }) => {
+      const entries: Record<string, unknown> = {};
+      for (const [key, value] of HashMap.entries(annotations)) {
+        entries[key] = value;
+      }
+      captured.push({ message, annotations: entries });
+    });
+
+    const TestLogger = Logger.replace(Logger.defaultLogger, captureLogger);
+    const runtime = ManagedRuntime.make(TestLogger);
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    installFiberContextBridge(undefined);
+    try {
+      const procedure = makeEffectORPC(runtime)
+        .$context<{ token: string }>()
+        .useEffect(function* ({ next, context }) {
+          return yield* next({ context }).pipe(
+            Effect.annotateLogs({
+              requestId: "req-42",
+              userToken: context.token,
+            }),
+          );
+        })
+        .effect(function* () {
+          yield* Effect.logInfo("handler-ran");
+          return "ok";
+        });
+
+      const result = await call(procedure, undefined, {
+        context: { token: "tkn-7" },
+      });
+
+      expect(result).toBe("ok");
+
+      const handlerLog = captured.find((entry) =>
+        Array.isArray(entry.message)
+          ? entry.message.includes("handler-ran")
+          : entry.message === "handler-ran",
+      );
+      expect(handlerLog, "expected handler log to be captured").toBeDefined();
+      expect(handlerLog?.annotations).not.toHaveProperty("requestId");
+      expect(handlerLog?.annotations).not.toHaveProperty("userToken");
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0]?.[0]).toMatch(
+        /no fiber-context bridge is installed/,
+      );
+      expect(warnSpy.mock.calls[0]?.[0]).toMatch(/effect-orpc\/node/);
+
+      // Second invocation while the bridge is still uninstalled must not
+      // re-warn — once per uninstalled state is enough to alert the
+      // operator without flooding logs.
+      await call(procedure, undefined, { context: { token: "tkn-8" } });
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      warnSpy.mockRestore();
+      installFreshFiberContextBridge();
+      await runtime.dispose();
+    }
   });
 
   it("narrows next() failures by code on declared errors", async () => {
