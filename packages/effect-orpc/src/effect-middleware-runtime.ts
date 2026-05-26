@@ -1,6 +1,6 @@
 import type { Meta } from "@orpc/contract";
 import { ORPCError } from "@orpc/contract";
-import type { Context, Middleware } from "@orpc/server";
+import type {Context, Middleware, MiddlewareResult} from "@orpc/server";
 import type { ManagedRuntime } from "effect";
 import { Effect, Exit } from "effect";
 
@@ -59,7 +59,7 @@ export function createEffectMiddlewareHandler<
   return async (opts, input, output) => {
     const errors = createEffectErrorConstructorMap(effectErrorMap);
 
-    const effectNext: EffectMiddlewareNextFn<TOutput> = ((
+    const effectNext: EffectMiddlewareNextFn<TOutput, TEffectErrorMap> = ((
       ...nextArgs: readonly unknown[]
     ) =>
       Effect.flatMap(Effect.getFiberRefs, (fiberRefs) =>
@@ -74,6 +74,12 @@ export function createEffectMiddlewareHandler<
                 ),
               ),
             ),
+          // The runtime contract is "every failure surfaces as an ORPCError":
+          // - existing `ORPCError` instances pass through unchanged so the
+          //   middleware can `Effect.catchIf` on `code` and read typed `data`;
+          // - everything else is wrapped as INTERNAL_SERVER_ERROR. The static
+          //   failure channel of `effectNext` reflects this — see
+          //   `EffectMiddlewareNextFn` for the discriminated-union shape.
           catch: (cause) =>
             cause instanceof ORPCError
               ? cause
@@ -82,7 +88,7 @@ export function createEffectMiddlewareHandler<
                     cause instanceof Error ? cause : new Error(String(cause)),
                 }),
         }),
-      )) as EffectMiddlewareNextFn<TOutput>;
+      )) as EffectMiddlewareNextFn<TOutput, TEffectErrorMap>;
 
     const effectOpts = {
       context: opts.context,
@@ -118,6 +124,6 @@ export function createEffectMiddlewareHandler<
       throw toORPCErrorFromCause(exit.cause, opts.signal);
     }
 
-    return exit.value as never;
+    return exit.value as MiddlewareResult<TOutContext, TOutput>;
   };
 }

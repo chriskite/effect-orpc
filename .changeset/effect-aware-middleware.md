@@ -25,7 +25,11 @@ The bridge:
 - Provides an Effect-shaped `next` that wraps the downstream `Promise` in
   `Effect.tryPromise`, surfacing downstream `ORPCError` rejections as typed
   Effect failures so middlewares may `Effect.catchAll` / `Effect.catchTag` over
-  them.
+  them. The failure channel is a discriminated union over `code` derived from
+  the builder's declared error map, so `if (e.code === "BAD_REQUEST")` narrows
+  `e.data` to the schema-derived shape with no manual type predicate. (When no
+  errors are declared, the channel falls back to the wide
+  `ORPCError<ORPCErrorCode, unknown>`.)
 - Captures the middleware fiber's `FiberRefs` immediately before each `next()`
   call and installs them in the fiber-context bridge for the duration of the
   downstream call, preserving the documented guarantee that request-scoped
@@ -39,5 +43,6 @@ The bridge:
 
 `useEffect` is exposed on `EffectBuilder`, all builder variants, and
 `EffectDecoratedProcedure`. New exports: `EffectMiddlewareHandler`,
-`EffectMiddlewareNextFn`, `EffectMiddlewareOptions`, and
-`createEffectMiddlewareHandler` (for advanced/integration use).
+`EffectMiddlewareNextFn`, `EffectMiddlewareOptions`,
+`EffectErrorMapToORPCErrorUnion`, and `createEffectMiddlewareHandler` (for
+advanced/integration use).

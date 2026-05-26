@@ -44,6 +44,7 @@ export type {
   EffectDecoratedProcedureSurface,
   EffectBuilderWithMiddlewares,
   EffectErrorMapToErrorMap,
+  EffectErrorMapToORPCErrorUnion,
   EffectMiddlewareHandler,
   EffectMiddlewareNextFn,
   EffectMiddlewareOptions,

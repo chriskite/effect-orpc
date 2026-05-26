@@ -275,6 +275,50 @@ describe(".useEffect", () => {
     await runtime.dispose();
   });
 
+  it("narrows next() failures by code on declared errors", async () => {
+    // Verifies that `EffectMiddlewareNextFn` exposes a discriminated-union
+    // failure channel keyed by `code`. The compile-time assertion is the
+    // `observed.push(e.data.reason)` line: `e.data.reason` only typechecks
+    // if narrowing on `e.code === "BAD_REQUEST"` produces
+    // `ORPCError<"BAD_REQUEST", { reason: string }>`. If the failure channel
+    // collapsed back to the original wide `ORPCError<ORPCErrorCode, unknown>`,
+    // `e.data` would be `unknown` and `bun run check` (tsc -b) would fail.
+    const runtime = ManagedRuntime.make(Layer.empty);
+    const observed: string[] = [];
+
+    const procedure = makeEffectORPC(runtime)
+      .errors({
+        BAD_REQUEST: {
+          status: 400,
+          data: z.object({ reason: z.string() }),
+        },
+      })
+      .useEffect(function* ({ next }) {
+        return yield* next().pipe(
+          Effect.tapError((e) =>
+            Effect.sync(() => {
+              if (e.code === "BAD_REQUEST") {
+                observed.push(e.data.reason);
+              }
+            }),
+          ),
+        );
+      })
+      .effect(function* ({ errors }) {
+        return yield* Effect.fail(
+          errors.BAD_REQUEST({ data: { reason: "downstream" } }),
+        );
+      });
+
+    await expect(call(procedure, undefined)).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      data: { reason: "downstream" },
+    });
+    expect(observed).toEqual(["downstream"]);
+
+    await runtime.dispose();
+  });
+
   it("is exposed on decorated procedures and adds to their middleware chain", async () => {
     const runtime = ManagedRuntime.make(Layer.empty);
 

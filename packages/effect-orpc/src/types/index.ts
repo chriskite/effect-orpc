@@ -4,6 +4,7 @@ import type {
   ErrorMap,
   ErrorMapItem,
   Meta,
+  ORPCErrorFromErrorMap,
   Schema,
 } from "@orpc/contract";
 import type {
@@ -145,22 +146,113 @@ export type EffectProcedureHandler<
 >;
 
 /**
+ * Maps an `EffectErrorMap` to a discriminated union of plain `ORPCError`
+ * instances keyed by `code`.
+ *
+ * Implemented by piping the Effect-extended error map through
+ * `EffectErrorMapToErrorMap` (which normalizes tagged classes into plain
+ * `ErrorMapItem` entries) and then through oRPC's own `ORPCErrorFromErrorMap`.
+ * Delegating to oRPC's machinery keeps the schema → data inference aligned
+ * with everything else in the ecosystem and avoids subtle re-derivation bugs
+ * (e.g. forgetting the `infer TSchema extends Schema<unknown, unknown>`
+ * constraint that `InferSchemaOutput` relies on).
+ *
+ * This differs intentionally from `EffectErrorMapToUnion` in `tagged-error.ts`:
+ *
+ * - `EffectErrorMapToUnion` returns instance types — for tagged classes, that's
+ *   the tagged class itself. That's the right shape for the *raising* side: a
+ *   `.effect()` handler that does `yield* errors.SOMETHING({...})` produces a
+ *   tagged-class instance and the user wants `Effect.catchTag` to discriminate
+ *   on `_tag`.
+ * - `EffectErrorMapToORPCErrorUnion` returns plain `ORPCError` instances. That's
+ *   the right shape for the *receiving* side of `next()` inside a middleware:
+ *   downstream tagged errors are converted via `.toORPCError()` in
+ *   `toORPCErrorFromCause` before they cross the throw boundary, so the value
+ *   that bubbles back into the middleware Effect is always a plain `ORPCError`,
+ *   never the original tagged class.
+ *
+ * Used to type the failure channel of `EffectMiddlewareNextFn` so callers can
+ * narrow on `code` (TypeScript's standard discriminated-union analysis) and
+ * read `data` with the schema-derived shape rather than `unknown`.
+ */
+export type EffectErrorMapToORPCErrorUnion<T extends EffectErrorMap> =
+  ORPCErrorFromErrorMap<EffectErrorMapToErrorMap<T>>;
+
+/**
+ * Failure-channel shape for `EffectMiddlewareNextFn`.
+ *
+ * Design note: we'd like to express "the declared errors, *plus* anything else
+ * that may have been thrown downstream." TypeScript can't represent that
+ * cleanly because `ORPCErrorCode = CommonORPCErrorCode | (string & {})` — the
+ * `(string & {})` escape is wider than any string literal and absorbs the
+ * declared branches under narrowing (`e.code === "BAD_REQUEST"` keeps the
+ * fallback alive, collapsing `data` back to `unknown`).
+ *
+ * So we settle for a conditional:
+ *
+ * - When the builder has *declared* errors via `.errors({...})`, the failure
+ *   channel is exactly the discriminated union of those errors. This matches
+ *   oRPC's typed-error contract — only declared codes appear in the type, even
+ *   though at runtime any `ORPCError` can surface — and lets users narrow on
+ *   `code` with full `data` precision.
+ * - When the builder has *no* declared errors, we keep the original wide
+ *   `ORPCError<ORPCErrorCode, unknown>` so callers can still `catchAll` and
+ *   inspect at runtime without the failure channel collapsing to `never`.
+ *
+ * The `[T] extends [never]` form is "tuple wrapping" — it suppresses
+ * distribution so that an empty `EffectErrorMap` evaluates as a whole rather
+ * than per-key. Without it, the conditional would distribute over `never` and
+ * yield `never` instead of the fallback.
+ */
+type EffectMiddlewareNextFailure<TEffectErrorMap extends EffectErrorMap> = [
+  EffectErrorMapToORPCErrorUnion<TEffectErrorMap>,
+] extends [never]
+  ? ORPCError<ORPCErrorCode, unknown>
+  : EffectErrorMapToORPCErrorUnion<TEffectErrorMap>;
+
+/**
  * Effect-shaped continuation for middleware. Mirrors the oRPC
  * `MiddlewareNextFn` shape but returns an `Effect` instead of a `Promisable`
  * so that the user's middleware Effect can `yield* next(...)` and stay
  * inside the Effect composition story.
  *
- * The Effect produced by `next` resolves to the downstream
- * `MiddlewareResult` and surfaces any thrown `ORPCError` as a typed Effect
- * failure, so middlewares may handle or transform downstream errors with
- * the usual `Effect.catchAll` / `Effect.catchTag` combinators.
+ * The failure channel reflects what the surrounding builder *declares* it
+ * knows about — see `EffectMiddlewareNextFailure` for the conditional. When
+ * errors are declared, the channel is a discriminated union keyed by `code`,
+ * so `if (e.code === "BAD_REQUEST")` narrows `e.data` to the schema-derived
+ * type with no type predicate needed.
+ *
+ * Note that tagged-error class identity is *not* preserved across the
+ * boundary: by the time a downstream failure surfaces here,
+ * `toORPCErrorFromCause` has already converted any `ORPCTaggedError` via
+ * `.toORPCError()`, so `Effect.catchTag` on `_tag` does not apply. Narrow on
+ * `code` instead.
+ *
+ * @example
+ * ```ts
+ * yield* next().pipe(
+ *   Effect.catchAll((e) => {
+ *     if (e.code === "BAD_REQUEST") {
+ *       // e.data is { reason: string }, not unknown
+ *       return Effect.logWarning(`bad request: ${e.data.reason}`);
+ *     }
+ *     return Effect.fail(e);
+ *   }),
+ * )
+ * ```
  */
-export interface EffectMiddlewareNextFn<TOutput> {
+export interface EffectMiddlewareNextFn<
+  TOutput,
+  // Defaults to "no declared errors" so direct references to
+  // `EffectMiddlewareNextFn<TOutput>` remain valid; the failure channel then
+  // collapses to the original wide `ORPCError<ORPCErrorCode, unknown>`.
+  TEffectErrorMap extends EffectErrorMap = Record<never, never>,
+> {
   <U extends Context = Record<never, never>>(
     ...rest: MaybeOptionalOptions<MiddlewareNextFnOptions<U>>
   ): Effect.Effect<
     MiddlewareResult<U, TOutput>,
-    ORPCError<ORPCErrorCode, unknown>
+    EffectMiddlewareNextFailure<TEffectErrorMap>
   >;
 }
 
@@ -184,7 +276,7 @@ export type EffectMiddlewareOptions<
   >,
   "next"
 > & {
-  next: EffectMiddlewareNextFn<TOutput>;
+  next: EffectMiddlewareNextFn<TOutput, TEffectErrorMap>;
 };
 
 /**
