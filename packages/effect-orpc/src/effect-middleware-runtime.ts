@@ -5,7 +5,11 @@ import type { ManagedRuntime } from "effect";
 import { Effect, Exit } from "effect";
 
 import { toORPCErrorFromCause } from "./effect-runtime";
-import { getCurrentFiberRefs, runWithFiberRefs } from "./fiber-context-bridge";
+import {
+  getCurrentFiberRefs,
+  runWithFiberRefs,
+  warnIfMissingFiberContextBridge,
+} from "./fiber-context-bridge";
 import type { EffectErrorMap } from "./tagged-error";
 import { createEffectErrorConstructorMap } from "./tagged-error";
 import type { EffectMiddlewareHandler, EffectMiddlewareNextFn } from "./types";
@@ -57,6 +61,7 @@ export function createEffectMiddlewareHandler<
   const { runtime, effectErrorMap, effectFn } = options;
 
   return async (opts, input, output) => {
+    warnIfMissingFiberContextBridge();
     const errors = createEffectErrorConstructorMap(effectErrorMap);
 
     const effectNext: EffectMiddlewareNextFn<TOutput, TEffectErrorMap> = ((
