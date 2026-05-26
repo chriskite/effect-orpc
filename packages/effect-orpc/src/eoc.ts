@@ -10,6 +10,11 @@ import type {
 } from "@orpc/contract";
 import { isContractProcedure, oc } from "@orpc/contract";
 
+import {
+  coerceToStandardSchema,
+  type EffectAcceptedSchema,
+  type ToStandardSchema,
+} from "./effect-schema-coerce";
 import type { EffectErrorMap, MergedEffectErrorMap } from "./tagged-error";
 import { effectErrorMapToErrorMap } from "./tagged-error";
 import type { EffectErrorMapToErrorMap } from "./types";
@@ -84,19 +89,19 @@ export interface EffectContractProcedureBuilder<
     TEffectErrorMap,
     TMeta
   >;
-  input<U extends AnySchema>(
+  input<U extends EffectAcceptedSchema>(
     schema: U,
   ): EffectContractProcedureBuilderWithInput<
-    U,
+    ToStandardSchema<U>,
     TOutputSchema,
     TEffectErrorMap,
     TMeta
   >;
-  output<U extends AnySchema>(
+  output<U extends EffectAcceptedSchema>(
     schema: U,
   ): EffectContractProcedureBuilderWithOutput<
     TInputSchema,
-    U,
+    ToStandardSchema<U>,
     TEffectErrorMap,
     TMeta
   >;
@@ -140,11 +145,11 @@ export interface EffectContractProcedureBuilderWithInput<
     TEffectErrorMap,
     TMeta
   >;
-  output<U extends AnySchema>(
+  output<U extends EffectAcceptedSchema>(
     schema: U,
   ): EffectContractProcedureBuilderWithInputOutput<
     TInputSchema,
-    U,
+    ToStandardSchema<U>,
     TEffectErrorMap,
     TMeta
   >;
@@ -188,10 +193,10 @@ export interface EffectContractProcedureBuilderWithOutput<
     TEffectErrorMap,
     TMeta
   >;
-  input<U extends AnySchema>(
+  input<U extends EffectAcceptedSchema>(
     schema: U,
   ): EffectContractProcedureBuilderWithInputOutput<
-    U,
+    ToStandardSchema<U>,
     TOutputSchema,
     TEffectErrorMap,
     TMeta
@@ -302,19 +307,19 @@ export interface EffectContractBuilder<
     TEffectErrorMap,
     TMeta
   >;
-  input<U extends AnySchema>(
+  input<U extends EffectAcceptedSchema>(
     schema: U,
   ): EffectContractProcedureBuilderWithInput<
-    U,
+    ToStandardSchema<U>,
     TOutputSchema,
     TEffectErrorMap,
     TMeta
   >;
-  output<U extends AnySchema>(
+  output<U extends EffectAcceptedSchema>(
     schema: U,
   ): EffectContractProcedureBuilderWithOutput<
     TInputSchema,
-    U,
+    ToStandardSchema<U>,
     TEffectErrorMap,
     TMeta
   >;
@@ -472,6 +477,17 @@ function wrapEffectContractBuilder<T>(
       const value = Reflect.get(target, prop, receiver);
       if (typeof value !== "function") {
         return value;
+      }
+
+      if (prop === "input" || prop === "output") {
+        return (schema: EffectAcceptedSchema) => {
+          const result = Reflect.apply(value, target, [
+            coerceToStandardSchema(schema),
+          ]);
+          return isWrappableContractBuilder(result)
+            ? wrapEffectContractBuilder(result, currentEffectErrorMap)
+            : result;
+        };
       }
 
       return (...args: unknown[]) => {
