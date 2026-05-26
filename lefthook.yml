@@ -13,7 +13,10 @@ pre-commit:
   jobs:
     - name: oxfmt
       glob: "*.{js,ts,mjs,cjs,jsx,tsx,json,md,yml,yaml}"
-      run: bunx oxfmt {staged_files}
+      # `--no-error-on-unmatched-pattern` keeps the hook quiet when every
+      # staged file is filtered out by `.oxfmtrc.jsonc`'s `ignorePatterns`
+      # (e.g. an isolated changeset edit under `.changeset/`).
+      run: bunx oxfmt --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
     - name: oxlint
       glob: "*.{js,ts,mjs,cjs,jsx,tsx}"
