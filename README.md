@@ -253,20 +253,22 @@ A few things worth knowing:
   declared error map — narrowing on `code` gives precise `data` typing:
 
   ```ts
-  yield* next().pipe(
-    Effect.catchAll((e) => {
-      if (e.code === "BAD_REQUEST") {
-        // e.data is { reason: string }, not unknown
-        return Effect.logWarning(`bad request: ${e.data.reason}`);
-      }
-      return Effect.fail(e);
-    }),
-  );
+  yield *
+    next().pipe(
+      Effect.catchAll((e) => {
+        if (e.code === "BAD_REQUEST") {
+          // e.data is { reason: string }, not unknown
+          return Effect.logWarning(`bad request: ${e.data.reason}`);
+        }
+        return Effect.fail(e);
+      }),
+    );
   ```
 
   Tagged-error class identity is not preserved — by the time a downstream
   failure surfaces in middleware it has been converted to a plain
   `ORPCError` — so narrow on `code`, not on `_tag`.
+
 - **Short-circuit by failing the Effect.** Returning early from the middleware
   without calling `next()` skips the downstream pipeline; surface the result
   as `yield* Effect.fail(errors.SomeError(...))` to drive oRPC's normal error
