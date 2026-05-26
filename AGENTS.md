@@ -37,6 +37,15 @@ When your changes create orphans:
 - Remove imports/variables/functions that YOUR changes made unused.
 - Don't remove pre-existing dead code unless asked.
 
+## README
+
+The repo has two READMEs that must stay byte-identical:
+
+- `README.md` at the repo root — the GitHub-visible copy and the **source of truth**.
+- `packages/effect-orpc/README.md` — the npm-shipped copy, **generated** by `scripts/sync-package-readme.ts` (invoked from the package's `build` script as `tsup && bun run sync:readme`).
+
+Always edit the root `README.md`, then run `cd packages/effect-orpc && bun run sync:readme` and verify `diff README.md packages/effect-orpc/README.md` is empty. Stage both files in the same commit so reviewers see they are in sync. Never edit the package copy directly — the next build would silently overwrite your changes.
+
 ## Vendored Repositories
 
 This project vendors external repositories under `@repos/`
