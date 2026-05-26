@@ -23,6 +23,20 @@ bun run build        # produce dist/ artifacts and emit .d.ts
 
 `bun run fix` will auto-format and auto-fix lint errors where possible.
 
+## Pre-commit hook
+
+`bun install` activates a [lefthook](https://lefthook.dev) pre-commit hook
+(configured in `lefthook.yml`) that runs `oxfmt` and `oxlint --fix` on staged
+files and re-stages the result. The hook covers the formatter and linter
+checks that CI runs as `bun run check`; `tsc -b` is intentionally skipped to
+keep commits fast and is left to CI.
+
+If you skipped the post-install step, activate the hook manually:
+
+```sh
+bunx lefthook install
+```
+
 ## Where things live
 
 - `packages/effect-orpc/src/` — library source.

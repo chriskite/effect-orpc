@@ -1,0 +1,21 @@
+# Lefthook git hooks — keeps local commits in sync with CI's `bun run check`.
+#
+# Activation: `bunx lefthook install` (auto-runs via the root `prepare` script
+# after `bun install`).
+#
+# The pre-commit hook auto-fixes formatting / lint issues on staged files and
+# re-stages the result, so the failures CI catches with `oxfmt --check` /
+# `oxlint` never make it into a commit. `tsc -b` is intentionally skipped —
+# it is slow on this workspace and CI catches it.
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: oxfmt
+      glob: "*.{js,ts,mjs,cjs,jsx,tsx,json,md,yml,yaml}"
+      run: bunx oxfmt {staged_files}
+      stage_fixed: true
+    - name: oxlint
+      glob: "*.{js,ts,mjs,cjs,jsx,tsx}"
+      run: bunx oxlint --fix {staged_files}
+      stage_fixed: true
