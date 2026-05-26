@@ -1,6 +1,6 @@
 import type { Meta } from "@orpc/contract";
 import { ORPCError } from "@orpc/contract";
-import type {Context, Middleware, MiddlewareResult} from "@orpc/server";
+import type { Context, Middleware, MiddlewareResult } from "@orpc/server";
 import type { ManagedRuntime } from "effect";
 import { Effect, Exit } from "effect";
 
