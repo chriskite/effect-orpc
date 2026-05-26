@@ -36,6 +36,10 @@ import type {
   EffectProcedure,
 } from "../effect-procedure";
 import type {
+  EffectAcceptedSchema,
+  ToStandardSchema,
+} from "../effect-schema-coerce";
+import type {
   EffectErrorConstructorMap,
   EffectErrorMap,
   MergedEffectErrorMap,
@@ -195,12 +199,12 @@ export interface EffectBuilderWithMiddlewares<
    *
    * @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
    */
-  "input"<USchema extends AnySchema>(
+  "input"<USchema extends EffectAcceptedSchema>(
     schema: USchema,
   ): EffectProcedureBuilderWithInput<
     TInitialContext,
     TCurrentContext,
-    USchema,
+    ToStandardSchema<USchema>,
     TOutputSchema,
     TEffectErrorMap,
     TMeta,
@@ -213,13 +217,13 @@ export interface EffectBuilderWithMiddlewares<
    *
    * @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
    */
-  "output"<USchema extends AnySchema>(
+  "output"<USchema extends EffectAcceptedSchema>(
     schema: USchema,
   ): EffectProcedureBuilderWithOutput<
     TInitialContext,
     TCurrentContext,
     TInputSchema,
-    USchema,
+    ToStandardSchema<USchema>,
     TEffectErrorMap,
     TMeta,
     TRequirementsProvided,
@@ -513,12 +517,12 @@ export interface EffectProcedureBuilder<
    *
    * @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
    */
-  "input"<USchema extends AnySchema>(
+  "input"<USchema extends EffectAcceptedSchema>(
     schema: USchema,
   ): EffectProcedureBuilderWithInput<
     TInitialContext,
     TCurrentContext,
-    USchema,
+    ToStandardSchema<USchema>,
     TOutputSchema,
     TEffectErrorMap,
     TMeta,
@@ -531,13 +535,13 @@ export interface EffectProcedureBuilder<
    *
    * @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
    */
-  "output"<USchema extends AnySchema>(
+  "output"<USchema extends EffectAcceptedSchema>(
     schema: USchema,
   ): EffectProcedureBuilderWithOutput<
     TInitialContext,
     TCurrentContext,
     TInputSchema,
-    USchema,
+    ToStandardSchema<USchema>,
     TEffectErrorMap,
     TMeta,
     TRequirementsProvided,
@@ -805,13 +809,13 @@ export interface EffectProcedureBuilderWithInput<
    *
    * @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
    */
-  "output"<USchema extends AnySchema>(
+  "output"<USchema extends EffectAcceptedSchema>(
     schema: USchema,
   ): EffectProcedureBuilderWithInputOutput<
     TInitialContext,
     TCurrentContext,
     TInputSchema,
-    USchema,
+    ToStandardSchema<USchema>,
     TEffectErrorMap,
     TMeta,
     TRequirementsProvided,
@@ -1045,12 +1049,12 @@ export interface EffectProcedureBuilderWithOutput<
    *
    * @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
    */
-  "input"<USchema extends AnySchema>(
+  "input"<USchema extends EffectAcceptedSchema>(
     schema: USchema,
   ): EffectProcedureBuilderWithInputOutput<
     TInitialContext,
     TCurrentContext,
-    USchema,
+    ToStandardSchema<USchema>,
     TOutputSchema,
     TEffectErrorMap,
     TMeta,

@@ -13,6 +13,7 @@ Inspired by [effect-trpc](https://github.com/mikearnaldi/effect-trpc).
 - **Telemetry support with automatic tracing** - Procedures are automatically traced with OpenTelemetry-compatible spans. Customize span names with `.traced()`.
 - **Builder pattern preserved** - oRPC builder methods (`.errors()`, `.meta()`, `.route()`, `.input()`, `.output()`, `.use()`) work seamlessly
 - **Effect-native middleware** - Author auth, rate limiting, and other cross-cutting concerns as generators with `.useEffect()`; services from your `ManagedRuntime` are available the same way they are inside `.effect()`
+- **Effect Schema integration** - Pass an Effect `Schema` directly to `.input()` / `.output()` (on both the builder and the `eoc` contract); it is converted to a Standard Schema automatically with no manual `Schema.standardSchemaV1(...)` boilerplate
 
 ## Installation
 
@@ -199,6 +200,36 @@ class UserNotFoundWithData extends ORPCTaggedError("UserNotFoundWithData", {
   schema: z.object({ userId: z.string() }),
 }) {}
 ```
+
+## Effect Schema in `.input()` / `.output()`
+
+`.input(schema)` and `.output(schema)` accept either a Standard Schema (Zod,
+Valibot, ArkType, …) or an Effect `Schema` directly. Effect schemas are
+detected at runtime and converted to a Standard Schema via
+`Schema.standardSchemaV1` — no manual wrapping required, and handler
+input/output remain fully typed.
+
+```ts
+import { Schema } from "effect";
+import { makeEffectORPC, eoc } from "@chriskite/effect-orpc";
+
+// Builder
+const getUser = effectOs
+  .input(Schema.Struct({ id: Schema.String }))
+  .output(Schema.Struct({ name: Schema.String }))
+  .effect(function* ({ input }) {
+    // input.id: string
+    return { name: `user-${input.id}` };
+  });
+
+// Contract
+const getUserContract = eoc
+  .input(Schema.Struct({ id: Schema.String }))
+  .output(Schema.Struct({ name: Schema.String }));
+```
+
+Effect schemas and Standard Schemas may be mixed within the same procedure;
+already-Standard inputs pass through untouched.
 
 ## Effect-Native Middleware
 

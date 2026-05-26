@@ -33,6 +33,10 @@ import type {
 } from ".";
 import type { EffectDecoratedProcedure } from "../effect-procedure";
 import type {
+  EffectAcceptedSchema,
+  ToStandardSchema,
+} from "../effect-schema-coerce";
+import type {
   EffectErrorConstructorMap,
   EffectErrorMap,
   MergedEffectErrorMap,
@@ -327,14 +331,18 @@ export interface EffectBuilderSurface<
   /**
    * Defines the input validation schema.
    *
+   * Accepts either a Standard Schema (Zod, Valibot, ArkType, …) or an
+   * Effect `Schema` — the latter is converted to a Standard Schema
+   * automatically.
+   *
    * @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
    */
-  input<USchema extends AnySchema>(
+  input<USchema extends EffectAcceptedSchema>(
     schema: USchema,
   ): EffectProcedureBuilderWithInput<
     TInitialContext,
     TCurrentContext,
-    USchema,
+    ToStandardSchema<USchema>,
     TOutputSchema,
     TEffectErrorMap,
     TMeta,
@@ -344,15 +352,19 @@ export interface EffectBuilderSurface<
   /**
    * Defines the output validation schema.
    *
+   * Accepts either a Standard Schema (Zod, Valibot, ArkType, …) or an
+   * Effect `Schema` — the latter is converted to a Standard Schema
+   * automatically.
+   *
    * @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
    */
-  output<USchema extends AnySchema>(
+  output<USchema extends EffectAcceptedSchema>(
     schema: USchema,
   ): EffectProcedureBuilderWithOutput<
     TInitialContext,
     TCurrentContext,
     TInputSchema,
-    USchema,
+    ToStandardSchema<USchema>,
     TEffectErrorMap,
     TMeta,
     TRequirementsProvided,

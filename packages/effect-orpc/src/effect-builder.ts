@@ -14,6 +14,10 @@ import { createEffectMiddlewareHandler } from "./effect-middleware-runtime";
 import { EffectDecoratedProcedure } from "./effect-procedure";
 import { createEffectProcedureHandler } from "./effect-runtime";
 import {
+  coerceToStandardSchema,
+  type EffectAcceptedSchema,
+} from "./effect-schema-coerce";
+import {
   createNodeProxy,
   unhandled,
   type NodeProxyContext,
@@ -43,7 +47,9 @@ const builderVirtualDescriptors = {
   effect: { enumerable: false },
   errors: { enumerable: false },
   handler: { enumerable: false },
+  input: { enumerable: false },
   lazy: { enumerable: false },
+  output: { enumerable: false },
   router: { enumerable: false },
   traced: { enumerable: false },
   useEffect: { enumerable: false },
@@ -53,6 +59,8 @@ const builderVirtualKeys = [
   "~effect",
   "errors",
   "effect",
+  "input",
+  "output",
   "traced",
   "handler",
   "router",
@@ -196,6 +204,30 @@ function createEffectBuilderProxy(
                   name: spanName,
                 },
               });
+          });
+        case "input":
+          return getOrCreateVirtualMethod(context, prop, () => {
+            return (schema: EffectAcceptedSchema) => {
+              const coerced = coerceToStandardSchema(schema);
+              const nextBuilder: AnyBuilderLike = Reflect.apply(
+                Reflect.get(source, "input", source),
+                source,
+                [coerced],
+              );
+              return wrapBuilderLike(nextBuilder, state);
+            };
+          });
+        case "output":
+          return getOrCreateVirtualMethod(context, prop, () => {
+            return (schema: EffectAcceptedSchema) => {
+              const coerced = coerceToStandardSchema(schema);
+              const nextBuilder: AnyBuilderLike = Reflect.apply(
+                Reflect.get(source, "output", source),
+                source,
+                [coerced],
+              );
+              return wrapBuilderLike(nextBuilder, state);
+            };
           });
         case "useEffect":
           return getOrCreateVirtualMethod(context, prop, () => {
