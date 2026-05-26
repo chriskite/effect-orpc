@@ -24,6 +24,7 @@ import type { IntersectPick } from "@orpc/shared";
 import type {
   EffectBuilderDef,
   EffectErrorMapToErrorMap,
+  EffectMiddlewareHandler,
   EffectProcedureBuilderWithInput,
   EffectProcedureBuilderWithOutput,
   EffectProcedureHandler,
@@ -230,6 +231,50 @@ export interface EffectBuilderSurface<
       unknown,
       EffectErrorConstructorMap<TEffectErrorMap>,
       TMeta
+    >,
+  ): EffectBuilderSurface<
+    MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
+    MergedCurrentContext<TCurrentContext, UOutContext>,
+    TInputSchema,
+    TOutputSchema,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
+  /**
+   * Registers an Effect-native middleware. The handler is a generator that
+   * yields effects and returns the downstream `MiddlewareResult`.
+   *
+   * Use this when middleware needs services from the `ManagedRuntime` (auth,
+   * rate limiting, audit logging) — equivalent to `.use(plainMiddleware)`
+   * but lets the body stay inside Effect's composition story.
+   *
+   * @example
+   * ```ts
+   * const authed = effectOs.useEffect(function* ({ next, errors, context }) {
+   *   const user = yield* UserService.authenticate(context.headers)
+   *   if (!user) {
+   *     return yield* Effect.fail(errors.UNAUTHORIZED({}))
+   *   }
+   *   return yield* next({ context: { ...context, user } })
+   * })
+   * ```
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
+  useEffect<
+    UOutContext extends IntersectPick<TCurrentContext, UOutContext>,
+    UInContext extends Context = TCurrentContext,
+  >(
+    middleware: EffectMiddlewareHandler<
+      UInContext | TCurrentContext,
+      UOutContext,
+      InferSchemaOutput<TInputSchema>,
+      unknown,
+      TEffectErrorMap,
+      TMeta,
+      TRequirementsProvided
     >,
   ): EffectBuilderSurface<
     MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,

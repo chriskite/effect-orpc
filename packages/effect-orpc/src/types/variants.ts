@@ -28,6 +28,7 @@ import type {
 import type {
   EffectBuilderDef,
   EffectErrorMapToErrorMap,
+  EffectMiddlewareHandler,
   EffectProcedureHandler,
 } from ".";
 import type {
@@ -108,6 +109,35 @@ export interface EffectBuilderWithMiddlewares<
       unknown,
       EffectErrorConstructorMap<TEffectErrorMap>,
       TMeta
+    >,
+  ): EffectBuilderWithMiddlewares<
+    MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
+    MergedCurrentContext<TCurrentContext, UOutContext>,
+    TInputSchema,
+    TOutputSchema,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
+
+  /**
+   * Registers an Effect-native middleware. See `EffectBuilderSurface.useEffect`.
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
+  "useEffect"<
+    UOutContext extends IntersectPick<TCurrentContext, UOutContext>,
+    UInContext extends Context = TCurrentContext,
+  >(
+    middleware: EffectMiddlewareHandler<
+      UInContext | TCurrentContext,
+      UOutContext,
+      unknown,
+      unknown,
+      TEffectErrorMap,
+      TMeta,
+      TRequirementsProvided
     >,
   ): EffectBuilderWithMiddlewares<
     MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
@@ -410,6 +440,35 @@ export interface EffectProcedureBuilder<
   >;
 
   /**
+   * Registers an Effect-native middleware. See `EffectBuilderSurface.useEffect`.
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
+  "useEffect"<
+    UOutContext extends IntersectPick<TCurrentContext, UOutContext>,
+    UInContext extends Context = TCurrentContext,
+  >(
+    middleware: EffectMiddlewareHandler<
+      UInContext | TCurrentContext,
+      UOutContext,
+      unknown,
+      unknown,
+      TEffectErrorMap,
+      TMeta,
+      TRequirementsProvided
+    >,
+  ): EffectProcedureBuilder<
+    MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
+    MergedCurrentContext<TCurrentContext, UOutContext>,
+    TInputSchema,
+    TOutputSchema,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
+
+  /**
    * Sets or updates the metadata.
    * The provided metadata is spared-merged with any existing metadata.
    *
@@ -673,6 +732,35 @@ export interface EffectProcedureBuilderWithInput<
   >;
 
   /**
+   * Registers an Effect-native middleware. See `EffectBuilderSurface.useEffect`.
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
+  "useEffect"<
+    UOutContext extends IntersectPick<TCurrentContext, UOutContext>,
+    UInContext extends Context = TCurrentContext,
+  >(
+    middleware: EffectMiddlewareHandler<
+      UInContext | TCurrentContext,
+      UOutContext,
+      InferSchemaOutput<TInputSchema>,
+      unknown,
+      TEffectErrorMap,
+      TMeta,
+      TRequirementsProvided
+    >,
+  ): EffectProcedureBuilderWithInput<
+    MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
+    MergedCurrentContext<TCurrentContext, UOutContext>,
+    TInputSchema,
+    TOutputSchema,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
+
+  /**
    * Sets or updates the metadata.
    * The provided metadata is spared-merged with any existing metadata.
    *
@@ -871,6 +959,35 @@ export interface EffectProcedureBuilderWithOutput<
       InferSchemaInput<TOutputSchema>,
       EffectErrorConstructorMap<TEffectErrorMap>,
       TMeta
+    >,
+  ): EffectProcedureBuilderWithOutput<
+    MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
+    MergedCurrentContext<TCurrentContext, UOutContext>,
+    TInputSchema,
+    TOutputSchema,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
+
+  /**
+   * Registers an Effect-native middleware. See `EffectBuilderSurface.useEffect`.
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
+  "useEffect"<
+    UOutContext extends IntersectPick<TCurrentContext, UOutContext>,
+    UInContext extends Context = TCurrentContext,
+  >(
+    middleware: EffectMiddlewareHandler<
+      UInContext | TCurrentContext,
+      UOutContext,
+      unknown,
+      InferSchemaInput<TOutputSchema>,
+      TEffectErrorMap,
+      TMeta,
+      TRequirementsProvided
     >,
   ): EffectProcedureBuilderWithOutput<
     MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
@@ -1129,6 +1246,35 @@ export interface EffectProcedureBuilderWithInputOutput<
   >;
 
   /**
+   * Registers an Effect-native middleware. See `EffectBuilderSurface.useEffect`.
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
+  "useEffect"<
+    UOutContext extends IntersectPick<TCurrentContext, UOutContext>,
+    UInContext extends Context = TCurrentContext,
+  >(
+    middleware: EffectMiddlewareHandler<
+      UInContext | TCurrentContext,
+      UOutContext,
+      InferSchemaOutput<TInputSchema>,
+      InferSchemaInput<TOutputSchema>,
+      TEffectErrorMap,
+      TMeta,
+      TRequirementsProvided
+    >,
+  ): EffectProcedureBuilderWithInputOutput<
+    MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
+    MergedCurrentContext<TCurrentContext, UOutContext>,
+    TInputSchema,
+    TOutputSchema,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
+
+  /**
    * Sets or updates the metadata.
    * The provided metadata is spared-merged with any existing metadata.
    *
@@ -1289,6 +1435,33 @@ export interface EffectRouterBuilder<
       unknown,
       EffectErrorConstructorMap<TEffectErrorMap>,
       TMeta
+    >,
+  ): EffectRouterBuilder<
+    MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,
+    MergedCurrentContext<TCurrentContext, UOutContext>,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
+
+  /**
+   * Registers an Effect-native middleware. See `EffectBuilderSurface.useEffect`.
+   *
+   * @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+   */
+  "useEffect"<
+    UOutContext extends IntersectPick<TCurrentContext, UOutContext>,
+    UInContext extends Context = TCurrentContext,
+  >(
+    middleware: EffectMiddlewareHandler<
+      UInContext | TCurrentContext,
+      UOutContext,
+      unknown,
+      unknown,
+      TEffectErrorMap,
+      TMeta,
+      TRequirementsProvided
     >,
   ): EffectRouterBuilder<
     MergedInitialContext<TInitialContext, UInContext, TCurrentContext>,

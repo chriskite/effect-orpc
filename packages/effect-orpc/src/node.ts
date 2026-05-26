@@ -12,6 +12,8 @@ const fiberRefsStorage = new AsyncLocalStorage<FiberRefs.FiberRefs>();
 
 const bridge: FiberContextBridge = {
   getCurrentFiberRefs: () => fiberRefsStorage.getStore(),
+  runWithFiberRefs: <T>(refs: FiberRefs.FiberRefs, fn: () => T) =>
+    fiberRefsStorage.run(refs, fn),
 };
 
 installFiberContextBridge(bridge);

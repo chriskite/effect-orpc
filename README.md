@@ -12,6 +12,7 @@ Inspired by [effect-trpc](https://github.com/mikearnaldi/effect-trpc).
 - **Full oRPC compatibility** - Mix Effect procedures with standard oRPC procedures in the same router
 - **Telemetry support with automatic tracing** - Procedures are automatically traced with OpenTelemetry-compatible spans. Customize span names with `.traced()`.
 - **Builder pattern preserved** - oRPC builder methods (`.errors()`, `.meta()`, `.route()`, `.input()`, `.output()`, `.use()`) work seamlessly
+- **Effect-native middleware** - Author auth, rate limiting, and other cross-cutting concerns as generators with `.useEffect()`; services from your `ManagedRuntime` are available the same way they are inside `.effect()`
 
 ## Installation
 
@@ -198,6 +199,189 @@ class UserNotFoundWithData extends ORPCTaggedError("UserNotFoundWithData", {
   schema: z.object({ userId: z.string() }),
 }) {}
 ```
+
+## Effect-Native Middleware
+
+`.useEffect(handler)` registers a middleware authored as an Effect generator —
+the same shape as `.effect()` handlers. Services from the `ManagedRuntime` are
+available via `yield*`, tagged errors from the surrounding `.errors(...)` map
+are exposed on `errors`, and the downstream pipeline is invoked through an
+Effect-shaped `next`.
+
+```ts
+import { Effect, ManagedRuntime } from "effect";
+import { makeEffectORPC, ORPCTaggedError } from "@chriskite/effect-orpc";
+
+class AuthService extends Effect.Service<AuthService>()("AuthService", {
+  accessors: true,
+  sync: () => ({
+    authenticate: (token: string) =>
+      token === "secret"
+        ? Effect.succeed({ id: "u-1" })
+        : Effect.fail(new Error("bad token")),
+  }),
+}) {}
+
+class UnauthorizedError extends ORPCTaggedError("UnauthorizedError", {
+  status: 401,
+}) {}
+
+const runtime = ManagedRuntime.make(AuthService.Default);
+
+const authedOs = makeEffectORPC(runtime)
+  .$context<{ token: string }>()
+  .errors({ UnauthorizedError })
+  .useEffect(function* ({ next, context, errors }) {
+    const user = yield* AuthService.authenticate(context.token).pipe(
+      Effect.catchAll(() => Effect.fail(errors.UnauthorizedError())),
+    );
+    return yield* next({ context: { ...context, user } });
+  });
+
+const me = authedOs.effect(function* ({ context }) {
+  return { userId: context.user.id };
+});
+```
+
+A few things worth knowing:
+
+- **Downstream errors are typed Effect failures.** When the downstream
+  procedure throws an `ORPCError`, the `Effect` returned by `next()` fails
+  with that error. Use `Effect.catchAll`, `Effect.catchTag`, or
+  `Effect.tapError` to observe or transform it before re-failing. The
+  failure channel is a discriminated union derived from the builder's
+  declared error map — narrowing on `code` gives precise `data` typing:
+
+  ```ts
+  yield *
+    next().pipe(
+      Effect.catchAll((e) => {
+        if (e.code === "BAD_REQUEST") {
+          // e.data is { reason: string }, not unknown
+          return Effect.logWarning(`bad request: ${e.data.reason}`);
+        }
+        return Effect.fail(e);
+      }),
+    );
+  ```
+
+  Tagged-error class identity is not preserved — by the time a downstream
+  failure surfaces in middleware it has been converted to a plain
+  `ORPCError` — so narrow on `code`, not on `_tag`.
+
+- **Short-circuit by failing the Effect.** Returning early from the middleware
+  without calling `next()` skips the downstream pipeline; surface the result
+  as `yield* Effect.fail(errors.SomeError(...))` to drive oRPC's normal error
+  flow.
+- **Log annotations / FiberRefs propagate into the procedure.** Anything you
+  set on the middleware fiber's `FiberRefs` (for example
+  `Effect.annotateLogs({ requestId })` applied to `next()`) is visible to the
+  downstream `.effect()` handler. This piggybacks on the same fiber-context
+  bridge that `withFiberContext` uses; see _Request-Scoped Fiber Context_
+  below for runtime requirements.
+- **Cancellation flows through.** If the request `AbortSignal` fires while
+  the middleware is running, the middleware Effect is interrupted (so its
+  `Effect.onInterrupt` / `Effect.ensuring` finalizers fire), and the request
+  surfaces as `CLIENT_CLOSED_REQUEST` — identical to the cancellation story
+  for `.effect()` handlers.
+- **Composes with `.use()`.** `.useEffect()` and `.use()` may be mixed in any
+  order. Internally, `.useEffect()` compiles the Effect handler down to a
+  standard oRPC middleware and forwards to upstream `.use()`, so middleware
+  composition and ordering follow oRPC's normal rules.
+
+`.useEffect()` is also available on the result of `.effect()` — useful for
+applying a middleware to a single procedure rather than the builder.
+
+### Reusable middleware
+
+The handler passed to `.useEffect()` is just a value of type
+`EffectMiddlewareHandler<...>`, so you can move it out of the router and into
+its own module. A factory function is the most flexible shape — generic over
+the consuming builder's context, parameterised on whatever the middleware
+needs from the call site:
+
+```ts
+// src/middlewares/log-annotations.ts
+import type { Context } from "@orpc/server";
+import { Effect } from "effect";
+import type { EffectMiddlewareHandler } from "@chriskite/effect-orpc";
+
+/**
+ * Annotates every downstream log entry with key/value pairs derived from
+ * the current request context. Generic over `TContext` so it composes with
+ * any builder, doesn't change the context, requires no services from the
+ * `ManagedRuntime`, and contributes no tagged errors.
+ */
+export function annotateLogsMiddleware<TContext extends Context>(
+  getAnnotations: (context: TContext) => Record<string, unknown>,
+): EffectMiddlewareHandler<
+  TContext, // TInContext
+  Record<never, never>, // TOutContext — no context changes
+  unknown, // TInput
+  unknown, // TOutput
+  Record<never, never>, // TEffectErrorMap — no tagged errors
+  Record<never, never>, // TMeta
+  never // TRequirementsProvided — no services needed
+> {
+  return function* ({ next, context }) {
+    return yield* next({ context }).pipe(
+      Effect.annotateLogs(getAnnotations(context)),
+    );
+  };
+}
+```
+
+Plug it into any builder:
+
+```ts
+// src/server.ts
+import { makeEffectORPC } from "@chriskite/effect-orpc";
+// Importing the `/node` entrypoint installs the fiber-context bridge that
+// carries FiberRefs (log annotations, etc.) from the middleware Effect into
+// downstream .effect() handlers. See "Request-Scoped Fiber Context" below.
+import "@chriskite/effect-orpc/node";
+import { Effect, ManagedRuntime } from "effect";
+
+import { annotateLogsMiddleware } from "./middlewares/log-annotations";
+
+const runtime = ManagedRuntime.make(AppLive);
+
+const effectOs = makeEffectORPC(runtime)
+  .$context<{ requestId: string; userId?: string }>()
+  .useEffect(
+    annotateLogsMiddleware((ctx) => ({
+      requestId: ctx.requestId,
+      userId: ctx.userId ?? "anonymous",
+    })),
+  );
+
+export const router = {
+  // every Effect.log* call inside this handler is automatically tagged
+  // with requestId and userId
+  me: effectOs.effect(function* ({ context }) {
+    yield* Effect.logInfo("resolving me");
+    return { userId: context.userId };
+  }),
+};
+```
+
+A few notes on the pattern:
+
+- The factory is generic over `TContext` so it adapts to whatever
+  `.$context<...>()` shape the consuming builder is built around. TypeScript
+  infers `TContext` from the function passed at the call site.
+- Set `TRequirementsProvided` to `never` (rather than `MyService`) when the
+  middleware doesn't pull anything out of the runtime. `never` is assignable
+  to any runtime's requirements, so the middleware composes with builders
+  backed by any runtime. If you _do_ need a service, narrow the requirement
+  there and the call site will refuse to compose unless the runtime provides
+  it.
+- `TOutContext = Record<never, never>` says "this middleware adds nothing to
+  the context." Returning `next({ context: { ...context, user } })` instead
+  would widen `TOutContext` so downstream handlers see the merged shape.
+- To attach the same factory output to a single procedure rather than the
+  builder, call `.useEffect(...)` on the `EffectDecoratedProcedure` returned
+  by `.effect()`.
 
 ## Traceable Spans
 
@@ -481,27 +665,28 @@ const contract = {
 
 Wraps an oRPC Builder with Effect support. Available methods:
 
-| Method              | Description                                                                     |
-| ------------------- | ------------------------------------------------------------------------------- |
-| `.$config(config)`  | Set or override the builder config                                              |
-| `.$context<U>()`    | Set or override the initial context type                                        |
-| `.$meta(meta)`      | Set or override the initial metadata                                            |
-| `.$route(route)`    | Set or override the initial route configuration                                 |
-| `.$input(schema)`   | Set or override the initial input schema                                        |
-| `.middleware(fn)`   | Create a reusable middleware bound to this builder's context/meta/error map     |
-| `.errors(map)`      | Add type-safe custom errors                                                     |
-| `.meta(meta)`       | Set procedure metadata (merged with existing)                                   |
-| `.route(route)`     | Configure OpenAPI route (merged with existing)                                  |
-| `.input(schema)`    | Define input validation schema                                                  |
-| `.output(schema)`   | Define output validation schema                                                 |
-| `.use(middleware)`  | Add middleware                                                                  |
-| `.traced(name)`     | Add a traceable span for telemetry (optional, defaults to the procedure's path) |
-| `.handler(handler)` | Define a non-Effect handler (standard oRPC handler)                             |
-| `.effect(handler)`  | Define the Effect handler                                                       |
-| `.prefix(prefix)`   | Prefix all procedures in the router (for OpenAPI)                               |
-| `.tag(...tags)`     | Add tags to all procedures in the router (for OpenAPI)                          |
-| `.router(router)`   | Apply all options to a router                                                   |
-| `.lazy(loader)`     | Create and apply options to a lazy-loaded router                                |
+| Method                | Description                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| `.$config(config)`    | Set or override the builder config                                                 |
+| `.$context<U>()`      | Set or override the initial context type                                           |
+| `.$meta(meta)`        | Set or override the initial metadata                                               |
+| `.$route(route)`      | Set or override the initial route configuration                                    |
+| `.$input(schema)`     | Set or override the initial input schema                                           |
+| `.middleware(fn)`     | Create a reusable middleware bound to this builder's context/meta/error map        |
+| `.errors(map)`        | Add type-safe custom errors                                                        |
+| `.meta(meta)`         | Set procedure metadata (merged with existing)                                      |
+| `.route(route)`       | Configure OpenAPI route (merged with existing)                                     |
+| `.input(schema)`      | Define input validation schema                                                     |
+| `.output(schema)`     | Define output validation schema                                                    |
+| `.use(middleware)`    | Add middleware                                                                     |
+| `.useEffect(handler)` | Add an Effect-native middleware (generator-shaped, has access to runtime services) |
+| `.traced(name)`       | Add a traceable span for telemetry (optional, defaults to the procedure's path)    |
+| `.handler(handler)`   | Define a non-Effect handler (standard oRPC handler)                                |
+| `.effect(handler)`    | Define the Effect handler                                                          |
+| `.prefix(prefix)`     | Prefix all procedures in the router (for OpenAPI)                                  |
+| `.tag(...tags)`       | Add tags to all procedures in the router (for OpenAPI)                             |
+| `.router(router)`     | Apply all options to a router                                                      |
+| `.lazy(loader)`       | Create and apply options to a lazy-loaded router                                   |
 
 ### `EffectDecoratedProcedure`
 
@@ -513,6 +698,7 @@ The result of calling `.effect()`. Extends standard oRPC `DecoratedProcedure` wi
 | `.meta(meta)`           | Update metadata (merged with existing)        |
 | `.route(route)`         | Update route configuration (merged)           |
 | `.use(middleware)`      | Add middleware                                |
+| `.useEffect(handler)`   | Add an Effect-native middleware               |
 | `.callable(options?)`   | Make procedure directly invocable             |
 | `.actionable(options?)` | Make procedure compatible with server actions |
 

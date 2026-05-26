@@ -44,6 +44,7 @@ describe("effectBuilder proxy compatibility", () => {
     expect("router" in builder).toBe(true);
     expect("lazy" in builder).toBe(true);
     expect("middleware" in builder).toBe(true);
+    expect("useEffect" in builder).toBe(true);
 
     expect(Object.keys(builder)).toEqual(
       expect.arrayContaining(["~effect", "~orpc"]),
@@ -58,6 +59,7 @@ describe("effectBuilder proxy compatibility", () => {
         "handler",
         "router",
         "lazy",
+        "useEffect",
       ]),
     );
 
