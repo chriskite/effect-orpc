@@ -2,8 +2,8 @@ import { call } from "@orpc/server";
 import { Layer, ManagedRuntime, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { eoc } from "../src/eoc";
 import { makeEffectORPC } from "../src/effect-builder";
+import { eoc } from "../src/eoc";
 
 const runtime = ManagedRuntime.make(Layer.empty);
 
