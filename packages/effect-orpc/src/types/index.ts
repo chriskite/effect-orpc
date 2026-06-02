@@ -32,7 +32,6 @@ import type { YieldWrap } from "effect/Utils";
 import type {
   EffectErrorConstructorMap,
   EffectErrorMap,
-  EffectErrorMapToUnion,
   ORPCTaggedErrorInstance,
 } from "../tagged-error";
 
@@ -117,6 +116,15 @@ export interface EffectSpanConfig {
 /**
  * Handler type for Effect procedures.
  * The handler receives procedure options and returns an Effect.
+ *
+ * The yielded Effect's failure channel is intentionally `any`. Declared errors
+ * stay ergonomic via the `errors.XXX(...)` constructor map; any *undeclared*
+ * failure (e.g. a `SqlError` from a Drizzle/PgClient call, or any other
+ * untyped Effect failure) is allowed to propagate. Such failures are caught
+ * by `toORPCErrorFromCause` at the runtime boundary and surfaced to the wire
+ * as a generic `INTERNAL_SERVER_ERROR` (`defined: false`). This lets users
+ * skip per-call `Effect.mapError(...)` boilerplate when they're content to
+ * have unmodeled failures collapse to a 500.
  */
 export type EffectProcedureHandler<
   TCurrentContext extends Context,
@@ -133,14 +141,7 @@ export type EffectProcedureHandler<
     TMeta
   >,
 ) => Generator<
-  YieldWrap<
-    Effect.Effect<
-      any,
-      | EffectErrorMapToUnion<TEffectErrorMap>
-      | ORPCError<ORPCErrorCode, unknown>,
-      TRequirementsProvided
-    >
-  >,
+  YieldWrap<Effect.Effect<any, any, TRequirementsProvided>>,
   THandlerOutput,
   never
 >;
@@ -285,6 +286,10 @@ export type EffectMiddlewareOptions<
  * Returns a generator (the same Effect.fnUntraced-compatible shape used for
  * `.effect()` procedure handlers) that yields effects and ultimately returns
  * the `MiddlewareResult` of the downstream pipeline.
+ *
+ * As with `EffectProcedureHandler`, the yielded Effect's failure channel is
+ * intentionally `any` — declared errors stay ergonomic, and undeclared
+ * failures propagate to `toORPCErrorFromCause` and become a generic 500.
  */
 export type EffectMiddlewareHandler<
   TInContext extends Context,
@@ -299,14 +304,7 @@ export type EffectMiddlewareHandler<
   input: TInput,
   output: MiddlewareOutputFn<TOutput>,
 ) => Generator<
-  YieldWrap<
-    Effect.Effect<
-      any,
-      | EffectErrorMapToUnion<TEffectErrorMap>
-      | ORPCError<ORPCErrorCode, unknown>,
-      TRequirementsProvided
-    >
-  >,
+  YieldWrap<Effect.Effect<any, any, TRequirementsProvided>>,
   MiddlewareResult<TOutContext, TOutput>,
   never
 >;
