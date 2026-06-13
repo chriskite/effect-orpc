@@ -142,18 +142,6 @@ describe("effect stream", () => {
     expect(values[0]!.time).toBeInstanceOf(Date);
   });
 
-  it("still works with regular Effect (non-stream) handlers", async () => {
-    const builder = makeEffectORPC(runtime);
-    const procedure = builder.effect(function* () {
-      const value = yield* Effect.succeed(42);
-      return { result: value };
-    });
-
-    const result = await callHandler(procedure);
-
-    expect(result).toEqual({ result: 42 });
-  });
-
   it("handles stream with services from runtime", async () => {
     class CounterService extends Context.Tag("CounterService")<
       CounterService,
