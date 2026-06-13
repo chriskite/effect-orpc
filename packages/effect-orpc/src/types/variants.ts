@@ -30,6 +30,7 @@ import type {
   EffectErrorMapToErrorMap,
   EffectMiddlewareHandler,
   EffectProcedureHandler,
+  EffectStreamProcedureHandler,
 } from ".";
 import type {
   EffectDecoratedProcedure,
@@ -254,6 +255,31 @@ export interface EffectBuilderWithMiddlewares<
     TRuntimeError
   >;
 
+  /**
+   * Defines the handler of the procedure using an Effect Stream.
+   * The Stream is converted to an AsyncIteratorObject for SSE/event iterator support.
+   *
+   * @see {@link https://orpc.dev/docs/event-iterator Event Iterator Docs}
+   */
+  "effect"<TYield>(
+    effectFn: EffectStreamProcedureHandler<
+      TCurrentContext,
+      InferSchemaOutput<TInputSchema>,
+      TYield,
+      TEffectErrorMap,
+      TRequirementsProvided,
+      TMeta
+    >,
+  ): EffectDecoratedProcedure<
+    TInitialContext,
+    TCurrentContext,
+    TInputSchema,
+    Schema<AsyncIteratorObject<TYield>, AsyncIteratorObject<TYield>>,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
   /**
    * Defines the handler of the procedure using an Effect.
    * The Effect is executed using the ManagedRuntime provided during builder creation.
@@ -573,6 +599,31 @@ export interface EffectProcedureBuilder<
   >;
 
   /**
+   * Defines the handler of the procedure using an Effect Stream.
+   * The Stream is converted to an AsyncIteratorObject for SSE/event iterator support.
+   *
+   * @see {@link https://orpc.dev/docs/event-iterator Event Iterator Docs}
+   */
+  "effect"<TYield>(
+    effectFn: EffectStreamProcedureHandler<
+      TCurrentContext,
+      InferSchemaOutput<TInputSchema>,
+      TYield,
+      TEffectErrorMap,
+      TRequirementsProvided,
+      TMeta
+    >,
+  ): EffectDecoratedProcedure<
+    TInitialContext,
+    TCurrentContext,
+    TInputSchema,
+    Schema<AsyncIteratorObject<TYield>, AsyncIteratorObject<TYield>>,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
+  /**
    * Defines the handler of the procedure using an Effect.
    * The Effect is executed using the ManagedRuntime provided during builder creation.
    * The effect is automatically wrapped with `Effect.withSpan`.
@@ -830,7 +881,7 @@ export interface EffectProcedureBuilderWithInput<
   "handler"<UFuncOutput>(
     handler: ProcedureHandler<
       TCurrentContext,
-      InferSchemaOutput<TInputSchema>,
+      unknown,
       UFuncOutput,
       EffectErrorMapToErrorMap<TEffectErrorMap>,
       TMeta
@@ -846,6 +897,31 @@ export interface EffectProcedureBuilderWithInput<
     TRuntimeError
   >;
 
+  /**
+   * Defines the handler of the procedure using an Effect Stream.
+   * The Stream is converted to an AsyncIteratorObject for SSE/event iterator support.
+   *
+   * @see {@link https://orpc.dev/docs/event-iterator Event Iterator Docs}
+   */
+  "effect"<TYield>(
+    effectFn: EffectStreamProcedureHandler<
+      TCurrentContext,
+      InferSchemaOutput<TInputSchema>,
+      TYield,
+      TEffectErrorMap,
+      TRequirementsProvided,
+      TMeta
+    >,
+  ): EffectDecoratedProcedure<
+    TInitialContext,
+    TCurrentContext,
+    TInputSchema,
+    Schema<AsyncIteratorObject<TYield>, AsyncIteratorObject<TYield>>,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
   /**
    * Defines the handler of the procedure using an Effect.
    * The Effect is executed using the ManagedRuntime provided during builder creation.
@@ -1112,6 +1188,31 @@ export interface EffectProcedureBuilderWithOutput<
     TRequirementsProvided,
     TRuntimeError
   >;
+  /**
+   * Defines the handler of the procedure using an Effect Stream.
+   * The Stream is converted to an AsyncIteratorObject for SSE/event iterator support.
+   *
+   * @see {@link https://orpc.dev/docs/event-iterator Event Iterator Docs}
+   */
+  "effect"<TYield>(
+    effectFn: EffectStreamProcedureHandler<
+      TCurrentContext,
+      InferSchemaOutput<TInputSchema>,
+      TYield,
+      TEffectErrorMap,
+      TRequirementsProvided,
+      TMeta
+    >,
+  ): EffectDecoratedProcedure<
+    TInitialContext,
+    TCurrentContext,
+    TInputSchema,
+    Schema<AsyncIteratorObject<TYield>, AsyncIteratorObject<TYield>>,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
 
   /**
    * Adds a traceable span to the procedure for telemetry.
@@ -1342,6 +1443,31 @@ export interface EffectProcedureBuilderWithInputOutput<
     TRuntimeError
   >;
 
+  /**
+   * Defines the handler of the procedure using an Effect Stream.
+   * The Stream is converted to an AsyncIteratorObject for SSE/event iterator support.
+   *
+   * @see {@link https://orpc.dev/docs/event-iterator Event Iterator Docs}
+   */
+  "effect"<TYield>(
+    effectFn: EffectStreamProcedureHandler<
+      TCurrentContext,
+      InferSchemaOutput<TInputSchema>,
+      TYield,
+      TEffectErrorMap,
+      TRequirementsProvided,
+      TMeta
+    >,
+  ): EffectDecoratedProcedure<
+    TInitialContext,
+    TCurrentContext,
+    TInputSchema,
+    Schema<AsyncIteratorObject<TYield>, AsyncIteratorObject<TYield>>,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
   /**
    * Defines the handler of the procedure using an Effect.
    * The Effect is executed using the ManagedRuntime provided during builder creation.

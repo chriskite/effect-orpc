@@ -29,6 +29,7 @@ import type {
   EffectProcedureBuilderWithOutput,
   EffectProcedureHandler,
   EffectRouterBuilder,
+  EffectStreamProcedureHandler,
   EnhancedEffectRouter,
 } from ".";
 import type { EffectDecoratedProcedure } from "../effect-procedure";
@@ -434,6 +435,33 @@ export interface EffectBuilderSurface<
     TCurrentContext,
     TInputSchema,
     Schema<UFuncOutput, UFuncOutput>,
+    TEffectErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
+  >;
+  /**
+   * Defines the handler of the procedure using an Effect Stream.
+   * The Stream is converted to an AsyncIteratorObject for SSE/event iterator support.
+   * The effect is executed using the ManagedRuntime provided during builder creation.
+   * The effect is automatically wrapped with `Effect.withSpan`.
+   *
+   * @see {@link https://orpc.dev/docs/event-iterator Event Iterator Docs}
+   */
+  effect<TYield>(
+    effectFn: EffectStreamProcedureHandler<
+      TCurrentContext,
+      InferSchemaOutput<TInputSchema>,
+      TYield,
+      TEffectErrorMap,
+      TRequirementsProvided,
+      TMeta
+    >,
+  ): EffectDecoratedProcedure<
+    TInitialContext,
+    TCurrentContext,
+    TInputSchema,
+    Schema<AsyncIteratorObject<TYield>, AsyncIteratorObject<TYield>>,
     TEffectErrorMap,
     TMeta,
     TRequirementsProvided,

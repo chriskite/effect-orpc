@@ -163,18 +163,20 @@ function createEffectBuilderProxy(
         case "effect":
           return getOrCreateVirtualMethod(context, prop, () => {
             return (
-              effectFn: Parameters<
-                EffectBuilderSurface<
-                  any,
-                  any,
-                  any,
-                  any,
-                  any,
-                  any,
-                  any,
-                  any
-                >["effect"]
-              >[0],
+              effectFn:
+                | Parameters<
+                    EffectBuilderSurface<
+                      any,
+                      any,
+                      any,
+                      any,
+                      any,
+                      any,
+                      any,
+                      any
+                    >["effect"]
+                  >[0]
+                | ((...args: any[]) => any),
             ) => {
               const defaultCaptureStackTrace = addSpanStackTrace();
               return new EffectDecoratedProcedure({
@@ -186,7 +188,7 @@ function createEffectBuilderProxy(
                   return createEffectProcedureHandler({
                     defaultCaptureStackTrace,
                     effectErrorMap: state.effectErrorMap,
-                    effectFn,
+                    effectFn: effectFn as any,
                     runtime: state.runtime,
                     spanConfig: state.spanConfig,
                   })(opts as unknown as never);

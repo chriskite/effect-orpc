@@ -4,8 +4,9 @@ import type {
   ProcedureHandler,
   ProcedureHandlerOptions,
 } from "@orpc/server";
+import { streamToAsyncIteratorClass } from "@orpc/shared";
 import type { ManagedRuntime } from "effect";
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Stream } from "effect";
 
 import { getCurrentFiberRefs } from "./fiber-context-bridge";
 import type { EffectErrorConstructorMap, EffectErrorMap } from "./tagged-error";
@@ -150,19 +151,27 @@ export function createEffectProcedureHandler<
     const spanName = spanConfig?.name ?? opts.path.join(".");
     const captureStackTrace =
       spanConfig?.captureStackTrace ?? defaultCaptureStackTrace;
-    // `Effect.fnUntraced` accepts both generator and async functions; the
-    // intersection of those over our `EffectProcedureHandler` shape is wider
-    // than the type system can express. Cast through `unknown` at the boundary.
+
+    const result = (effectFn as Function)(effectOpts);
+
+    if (
+      result != null &&
+      typeof result === "object" &&
+      Stream.StreamTypeId in result
+    ) {
+      return runStreamHandler(
+        result as Stream.Stream<unknown, unknown, unknown>,
+        { spanName, captureStackTrace, signal: opts.signal },
+      );
+    }
+
+    const generatorFn = () => result;
     const resolver = Effect.fnUntraced(
-      effectFn as unknown as Parameters<typeof Effect.fnUntraced>[0],
+      generatorFn as unknown as Parameters<typeof Effect.fnUntraced>[0],
     );
-    const tracedEffect = Effect.withSpan(resolver(effectOpts), spanName, {
+    const tracedEffect = Effect.withSpan(resolver(), spanName, {
       captureStackTrace,
     });
-    // Inherit captured request-scoped FiberRefs (set up by withFiberContext)
-    // into the runtime fiber. The captured refs override the runtime's refs
-    // on conflict — matches the README guarantee that request-scoped state
-    // shadows application-scoped state.
     const capturedFiberRefs = getCurrentFiberRefs();
     const effectWithRefs = capturedFiberRefs
       ? Effect.zipRight(
@@ -178,6 +187,76 @@ export function createEffectProcedureHandler<
       throw toORPCErrorFromCause(exit.cause, opts.signal);
     }
 
+    if (
+      exit.value != null &&
+      typeof exit.value === "object" &&
+      Stream.StreamTypeId in exit.value
+    ) {
+      return runStreamHandler(
+        exit.value as Stream.Stream<unknown, unknown, unknown>,
+        { spanName, captureStackTrace, signal: opts.signal },
+      );
+    }
+
     return exit.value as TOutput;
   };
+
+  function runStreamHandler(
+    stream: Stream.Stream<unknown, unknown, unknown>,
+    config: {
+      spanName: string;
+      captureStackTrace: () => string | undefined;
+      signal?: AbortSignal;
+    },
+  ) {
+    const mappedStream = Stream.catchAll(stream, (error: unknown) => {
+      const orpcError = isORPCTaggedError(error)
+        ? error.toORPCError()
+        : error instanceof ORPCError
+          ? error
+          : new ORPCError("INTERNAL_SERVER_ERROR", { cause: error });
+      return Stream.fail(orpcError);
+    });
+    const readableEffect = Stream.toReadableStreamEffect(mappedStream);
+    const tracedEffect = Effect.withSpan(readableEffect, config.spanName, {
+      captureStackTrace: config.captureStackTrace,
+    });
+    const capturedFiberRefs = getCurrentFiberRefs();
+    const effectWithRefs = capturedFiberRefs
+      ? Effect.zipRight(
+          Effect.inheritFiberRefs(capturedFiberRefs),
+          tracedEffect,
+        )
+      : tracedEffect;
+
+    return runtime
+      .runPromiseExit(
+        effectWithRefs as Effect.Effect<ReadableStream<unknown>, never, never>,
+      )
+      .then((exit) => {
+        if (Exit.isFailure(exit)) {
+          throw toORPCErrorFromCause(exit.cause, config.signal);
+        }
+
+        const readableStream = exit.value;
+        const iterator = streamToAsyncIteratorClass(readableStream);
+
+        if (config.signal?.aborted) {
+          iterator.return?.();
+          throw new ORPCError("CLIENT_CLOSED_REQUEST", {
+            cause: abortReasonToError(config.signal.reason),
+          });
+        }
+
+        config.signal?.addEventListener(
+          "abort",
+          () => {
+            iterator.return?.();
+          },
+          { once: true },
+        );
+
+        return iterator as TOutput;
+      });
+  }
 }

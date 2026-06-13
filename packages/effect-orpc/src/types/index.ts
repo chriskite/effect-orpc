@@ -26,7 +26,7 @@ import type {
   RouterBuilder,
 } from "@orpc/server";
 import type { MaybeOptionalOptions } from "@orpc/shared";
-import type { Effect, ManagedRuntime } from "effect";
+import type { Effect, ManagedRuntime, Stream } from "effect";
 import type { YieldWrap } from "effect/Utils";
 
 import type {
@@ -145,6 +145,29 @@ export type EffectProcedureHandler<
   THandlerOutput,
   never
 >;
+
+/**
+ * Handler type for Effect procedures that return a Stream.
+ * Used for event iterator / SSE endpoints.
+ *
+ * The handler receives procedure options and returns an Effect Stream
+ * that will be converted to an AsyncIteratorObject at runtime.
+ */
+export type EffectStreamProcedureHandler<
+  TCurrentContext extends Context,
+  TInput,
+  TYield,
+  TEffectErrorMap extends EffectErrorMap,
+  TRequirementsProvided,
+  TMeta extends Meta,
+> = (
+  opt: ProcedureHandlerOptions<
+    TCurrentContext,
+    TInput,
+    EffectErrorConstructorMap<TEffectErrorMap>,
+    TMeta
+  >,
+) => Stream.Stream<TYield, any, TRequirementsProvided>;
 
 /**
  * Maps an `EffectErrorMap` to a discriminated union of plain `ORPCError`

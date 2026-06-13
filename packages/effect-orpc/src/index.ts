@@ -56,6 +56,7 @@ export type {
   EffectProcedureHandler,
   EffectRouterBuilder,
   EffectSpanConfig,
+  EffectStreamProcedureHandler,
   InferBuilderCurrentContext,
   InferBuilderErrorMap,
   InferBuilderInitialContext,
