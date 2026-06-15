@@ -4,8 +4,9 @@ import type {
   ProcedureHandler,
   ProcedureHandlerOptions,
 } from "@orpc/server";
+import { streamToAsyncIteratorClass } from "@orpc/shared";
 import type { ManagedRuntime } from "effect";
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Stream } from "effect";
 
 import { getCurrentFiberRefs } from "./fiber-context-bridge";
 import type { EffectErrorConstructorMap, EffectErrorMap } from "./tagged-error";
@@ -95,6 +96,41 @@ function combineCauses(
   });
 }
 
+/**
+ * In-band representation of a streamed value or its terminal error. Errors are
+ * carried as values (not stream failures) so the underlying ReadableStream
+ * never calls `controller.error()`, which would reset its queue and drop a
+ * value buffered just before the failure.
+ */
+type StreamChunk =
+  | { _tag: "item"; value: unknown }
+  | { _tag: "error"; error: ORPCError<string, unknown> };
+
+/**
+ * Adapt the tagged-chunk iterator back into the value stream callers expect:
+ * yield each item in order, then throw the terminal error (if any) only after
+ * all preceding values have been delivered. Closing this iterator cancels the
+ * underlying reader, interrupting the source fiber.
+ */
+async function* unwrapStreamChunks(
+  base: AsyncIteratorObject<StreamChunk>,
+): AsyncGenerator {
+  try {
+    for (;;) {
+      const { done, value } = await base.next();
+      if (done) {
+        return;
+      }
+      if (value._tag === "error") {
+        throw value.error;
+      }
+      yield value.value;
+    }
+  } finally {
+    await base.return?.(undefined);
+  }
+}
+
 export function createEffectProcedureHandler<
   TCurrentContext extends Context,
   TInput,
@@ -150,19 +186,27 @@ export function createEffectProcedureHandler<
     const spanName = spanConfig?.name ?? opts.path.join(".");
     const captureStackTrace =
       spanConfig?.captureStackTrace ?? defaultCaptureStackTrace;
-    // `Effect.fnUntraced` accepts both generator and async functions; the
-    // intersection of those over our `EffectProcedureHandler` shape is wider
-    // than the type system can express. Cast through `unknown` at the boundary.
+
+    const result = (effectFn as Function)(effectOpts);
+
+    if (
+      result != null &&
+      typeof result === "object" &&
+      Stream.StreamTypeId in result
+    ) {
+      return runStreamHandler(
+        result as Stream.Stream<unknown, unknown, unknown>,
+        { spanName, captureStackTrace, signal: opts.signal },
+      );
+    }
+
+    const generatorFn = () => result;
     const resolver = Effect.fnUntraced(
-      effectFn as unknown as Parameters<typeof Effect.fnUntraced>[0],
+      generatorFn as unknown as Parameters<typeof Effect.fnUntraced>[0],
     );
-    const tracedEffect = Effect.withSpan(resolver(effectOpts), spanName, {
+    const tracedEffect = Effect.withSpan(resolver(), spanName, {
       captureStackTrace,
     });
-    // Inherit captured request-scoped FiberRefs (set up by withFiberContext)
-    // into the runtime fiber. The captured refs override the runtime's refs
-    // on conflict — matches the README guarantee that request-scoped state
-    // shadows application-scoped state.
     const capturedFiberRefs = getCurrentFiberRefs();
     const effectWithRefs = capturedFiberRefs
       ? Effect.zipRight(
@@ -178,6 +222,88 @@ export function createEffectProcedureHandler<
       throw toORPCErrorFromCause(exit.cause, opts.signal);
     }
 
+    if (
+      exit.value != null &&
+      typeof exit.value === "object" &&
+      Stream.StreamTypeId in exit.value
+    ) {
+      return runStreamHandler(
+        exit.value as Stream.Stream<unknown, unknown, unknown>,
+        { spanName, captureStackTrace, signal: opts.signal },
+      );
+    }
+
     return exit.value as TOutput;
   };
+
+  async function runStreamHandler(
+    stream: Stream.Stream<unknown, unknown, unknown>,
+    config: {
+      spanName: string;
+      captureStackTrace: () => string | undefined;
+      signal?: AbortSignal;
+    },
+  ) {
+    // Carry both values and the terminal error as in-band, tagged chunks.
+    //
+    // If we let the Stream *fail* into the ReadableStream, Effect's
+    // `toReadableStream` calls `controller.error()` from a fiber observer the
+    // moment the stream fails. WHATWG `ReadableStreamDefaultControllerError`
+    // resets the queue, so a value enqueued immediately before the failure is
+    // discarded before the consumer can read it — silent data loss for any
+    // `emit(x)` followed by a failure. Instead we map the full Cause (typed
+    // failures AND defects/interrupts) into a terminal *value*; the stream
+    // always completes successfully, the ReadableStream closes normally, and
+    // the iterator below re-throws the error only after every prior value has
+    // been delivered.
+    const mappedStream: Stream.Stream<StreamChunk, never, unknown> =
+      Stream.catchAllCause(
+        Stream.map(stream, (value): StreamChunk => ({ _tag: "item", value })),
+        (cause) =>
+          Stream.succeed<StreamChunk>({
+            _tag: "error",
+            error: toORPCErrorFromCause(cause, config.signal),
+          }),
+      );
+    const readableEffect = Stream.toReadableStreamEffect(mappedStream);
+    const tracedEffect = Effect.withSpan(readableEffect, config.spanName, {
+      captureStackTrace: config.captureStackTrace,
+    });
+    const capturedFiberRefs = getCurrentFiberRefs();
+    const effectWithRefs = capturedFiberRefs
+      ? Effect.zipRight(
+          Effect.inheritFiberRefs(capturedFiberRefs),
+          tracedEffect,
+        )
+      : tracedEffect;
+
+    const exit = await runtime.runPromiseExit(
+      effectWithRefs as Effect.Effect<ReadableStream<unknown>, never, never>,
+      { signal: config.signal },
+    );
+    // This only catches failures constructing the ReadableStream. Errors
+    // raised while the stream is being consumed surface through the stream
+    // itself (mapped by `mappedStream` above), not here.
+    if (Exit.isFailure(exit)) {
+      throw toORPCErrorFromCause(exit.cause, config.signal);
+    }
+    const readableStream = exit.value as ReadableStream<StreamChunk>;
+    const iterator = unwrapStreamChunks(
+      streamToAsyncIteratorClass(readableStream),
+    );
+    if (config.signal?.aborted) {
+      await iterator.return?.(undefined);
+      throw new ORPCError("CLIENT_CLOSED_REQUEST", {
+        cause: abortReasonToError(config.signal.reason),
+      });
+    }
+    config.signal?.addEventListener(
+      "abort",
+      () => {
+        iterator.return?.(undefined);
+      },
+      { once: true },
+    );
+    return iterator as TOutput;
+  }
 }

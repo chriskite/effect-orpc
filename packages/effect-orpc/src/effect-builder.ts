@@ -33,6 +33,7 @@ import { effectErrorMapToErrorMap } from "./tagged-error";
 import type {
   AnyBuilderLike,
   EffectBuilderDef,
+  EffectStreamProcedureHandler,
   InferBuilderCurrentContext,
   InferBuilderErrorMap,
   InferBuilderInitialContext,
@@ -40,7 +41,7 @@ import type {
   InferBuilderMeta,
   InferBuilderOutputSchema,
 } from "./types";
-import type { EffectBuilderSurface } from "./types/effect-builder-surface";
+import type { EffectBuilderSurface } from "./types";
 
 const builderVirtualDescriptors = {
   "~effect": { enumerable: true },
@@ -163,18 +164,20 @@ function createEffectBuilderProxy(
         case "effect":
           return getOrCreateVirtualMethod(context, prop, () => {
             return (
-              effectFn: Parameters<
-                EffectBuilderSurface<
-                  any,
-                  any,
-                  any,
-                  any,
-                  any,
-                  any,
-                  any,
-                  any
-                >["effect"]
-              >[0],
+              effectFn:
+                | Parameters<
+                    EffectBuilderSurface<
+                      any,
+                      any,
+                      any,
+                      any,
+                      any,
+                      any,
+                      any,
+                      any
+                    >["effect"]
+                  >[0]
+                | EffectStreamProcedureHandler<any, any, any, any, any, any>,
             ) => {
               const defaultCaptureStackTrace = addSpanStackTrace();
               return new EffectDecoratedProcedure({
@@ -186,7 +189,7 @@ function createEffectBuilderProxy(
                   return createEffectProcedureHandler({
                     defaultCaptureStackTrace,
                     effectErrorMap: state.effectErrorMap,
-                    effectFn,
+                    effectFn: effectFn as any,
                     runtime: state.runtime,
                     spanConfig: state.spanConfig,
                   })(opts as unknown as never);

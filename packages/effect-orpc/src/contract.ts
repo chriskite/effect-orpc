@@ -8,6 +8,7 @@ import type {
   InferSchemaInput,
   InferSchemaOutput,
   Meta,
+  Schema,
 } from "@orpc/contract";
 import { isContractProcedure } from "@orpc/contract";
 import type {
@@ -36,7 +37,11 @@ import { createEffectProcedureHandler } from "./effect-runtime";
 import { effectContractSymbol, getEffectContractErrorMap } from "./eoc";
 import type { EffectErrorMap } from "./tagged-error";
 import { effectErrorMapToErrorMap } from "./tagged-error";
-import type { EffectErrorMapToErrorMap, EffectProcedureHandler } from "./types";
+import type {
+  EffectErrorMapToErrorMap,
+  EffectProcedureHandler,
+  EffectStreamProcedureHandler,
+} from "./types";
 
 type ContractLeafEffectHandler<
   TCurrentContext extends Context,
@@ -49,6 +54,22 @@ type ContractLeafEffectHandler<
   TCurrentContext,
   InferSchemaOutput<TInputSchema>,
   InferSchemaInput<TOutputSchema>,
+  TErrorMap,
+  TRequirementsProvided,
+  TMeta
+>;
+
+type ContractLeafStreamHandler<
+  TCurrentContext extends Context,
+  TInputSchema extends AnySchema,
+  TYield,
+  TErrorMap extends EffectErrorMap,
+  TRequirementsProvided,
+  TMeta extends Meta,
+> = EffectStreamProcedureHandler<
+  TCurrentContext,
+  InferSchemaOutput<TInputSchema>,
+  TYield,
   TErrorMap,
   TRequirementsProvided,
   TMeta
@@ -142,6 +163,25 @@ export interface EffectProcedureImplementer<
     TOutputSchema,
     EffectErrorMapToErrorMap<TErrorMap>,
     TMeta
+  >;
+  effect<TYield>(
+    effectFn: ContractLeafStreamHandler<
+      TCurrentContext,
+      TInputSchema,
+      TYield,
+      TErrorMap,
+      TRequirementsProvided,
+      TMeta
+    >,
+  ): EffectDecoratedProcedure<
+    TInitialContext,
+    TCurrentContext,
+    TInputSchema,
+    Schema<AsyncIteratorObject<TYield>, AsyncIteratorObject<TYield>>,
+    TErrorMap,
+    TMeta,
+    TRequirementsProvided,
+    TRuntimeError
   >;
   effect(
     effectFn: ContractLeafEffectHandler<

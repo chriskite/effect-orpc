@@ -14,6 +14,7 @@ Inspired by [effect-trpc](https://github.com/mikearnaldi/effect-trpc).
 - **Builder pattern preserved** - oRPC builder methods (`.errors()`, `.meta()`, `.route()`, `.input()`, `.output()`, `.use()`) work seamlessly
 - **Effect-native middleware** - Author auth, rate limiting, and other cross-cutting concerns as generators with `.useEffect()`; services from your `ManagedRuntime` are available the same way they are inside `.effect()`
 - **Effect Schema integration** - Pass an Effect `Schema` directly to `.input()` / `.output()` (on both the builder and the `eoc` contract); it is converted to a Standard Schema automatically with no manual `Schema.standardSchemaV1(...)` boilerplate
+- **Streaming / SSE** - Return an Effect `Stream` from `.effect()` and it is served as an oRPC [event iterator](https://orpc.dev/docs/event-iterator) (Server-Sent Events). Stream failures, tagged errors, and defects map to `ORPCError`; client disconnects interrupt the source fiber; and `lastEventId` is available for resumption
 
 ## Installation
 
@@ -230,6 +231,57 @@ const getUserContract = eoc
 
 Effect schemas and Standard Schemas may be mixed within the same procedure;
 already-Standard inputs pass through untouched.
+
+## Streaming / Event Iterators (SSE)
+
+Return an Effect `Stream` from `.effect()` to expose the procedure as an oRPC
+[event iterator](https://orpc.dev/docs/event-iterator). The stream is converted
+to an `AsyncIteratorObject` at the runtime boundary, which oRPC serializes to
+Server-Sent Events over HTTP. Pair it with `.output(eventIterator(schema))` to
+validate each yielded event.
+
+```ts
+import { eventIterator } from "@orpc/contract";
+import { Effect, Stream } from "effect";
+import { z } from "zod";
+
+const ticker = effectOs
+  .input(z.object({ count: z.number() }))
+  .output(eventIterator(z.object({ value: z.number() })))
+  // Return a Stream — either directly…
+  .effect(({ input }) =>
+    Stream.map(Stream.range(1, input.count), (value) => ({ value })),
+  );
+
+// …or from a generator, after pulling services / values with `yield*`:
+const liveTicker = effectOs
+  .output(eventIterator(z.object({ value: z.number() })))
+  .effect(function* () {
+    const limit = yield* ConfigRepo.tickLimit;
+    return Stream.map(Stream.range(1, limit), (value) => ({ value }));
+  });
+```
+
+Behavior:
+
+- **Error mapping** - Typed stream failures, `ORPCTaggedError`s, and defects
+  (`Stream.die`, thrown exceptions) are mapped to `ORPCError` and surfaced
+  mid-stream. Values emitted before a failure are delivered first — the error
+  is carried in-band so no buffered event is dropped.
+- **Cancellation** - When the client disconnects (or the request `signal`
+  aborts), the iterator is closed and the underlying Effect fiber is
+  interrupted. An already-aborted request rejects with `CLIENT_CLOSED_REQUEST`.
+- **Resumption** - `opts.lastEventId` is forwarded to the handler so a
+  resumable stream can skip already-delivered events on reconnect.
+
+```ts
+const resumable = effectOs
+  .output(eventIterator(z.object({ value: z.number() })))
+  .effect((opts) => {
+    const start = opts.lastEventId ? Number(opts.lastEventId) + 1 : 0;
+    return Stream.map(Stream.range(start, start + 9), (value) => ({ value }));
+  });
+```
 
 ## Effect-Native Middleware
 
@@ -704,28 +756,28 @@ const contract = {
 
 Wraps an oRPC Builder with Effect support. Available methods:
 
-| Method                | Description                                                                        |
-| --------------------- | ---------------------------------------------------------------------------------- |
-| `.$config(config)`    | Set or override the builder config                                                 |
-| `.$context<U>()`      | Set or override the initial context type                                           |
-| `.$meta(meta)`        | Set or override the initial metadata                                               |
-| `.$route(route)`      | Set or override the initial route configuration                                    |
-| `.$input(schema)`     | Set or override the initial input schema                                           |
-| `.middleware(fn)`     | Create a reusable middleware bound to this builder's context/meta/error map        |
-| `.errors(map)`        | Add type-safe custom errors                                                        |
-| `.meta(meta)`         | Set procedure metadata (merged with existing)                                      |
-| `.route(route)`       | Configure OpenAPI route (merged with existing)                                     |
-| `.input(schema)`      | Define input validation schema                                                     |
-| `.output(schema)`     | Define output validation schema                                                    |
-| `.use(middleware)`    | Add middleware                                                                     |
-| `.useEffect(handler)` | Add an Effect-native middleware (generator-shaped, has access to runtime services) |
-| `.traced(name)`       | Add a traceable span for telemetry (optional, defaults to the procedure's path)    |
-| `.handler(handler)`   | Define a non-Effect handler (standard oRPC handler)                                |
-| `.effect(handler)`    | Define the Effect handler                                                          |
-| `.prefix(prefix)`     | Prefix all procedures in the router (for OpenAPI)                                  |
-| `.tag(...tags)`       | Add tags to all procedures in the router (for OpenAPI)                             |
-| `.router(router)`     | Apply all options to a router                                                      |
-| `.lazy(loader)`       | Create and apply options to a lazy-loaded router                                   |
+| Method                | Description                                                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `.$config(config)`    | Set or override the builder config                                                                                                |
+| `.$context<U>()`      | Set or override the initial context type                                                                                          |
+| `.$meta(meta)`        | Set or override the initial metadata                                                                                              |
+| `.$route(route)`      | Set or override the initial route configuration                                                                                   |
+| `.$input(schema)`     | Set or override the initial input schema                                                                                          |
+| `.middleware(fn)`     | Create a reusable middleware bound to this builder's context/meta/error map                                                       |
+| `.errors(map)`        | Add type-safe custom errors                                                                                                       |
+| `.meta(meta)`         | Set procedure metadata (merged with existing)                                                                                     |
+| `.route(route)`       | Configure OpenAPI route (merged with existing)                                                                                    |
+| `.input(schema)`      | Define input validation schema                                                                                                    |
+| `.output(schema)`     | Define output validation schema                                                                                                   |
+| `.use(middleware)`    | Add middleware                                                                                                                    |
+| `.useEffect(handler)` | Add an Effect-native middleware (generator-shaped, has access to runtime services)                                                |
+| `.traced(name)`       | Add a traceable span for telemetry (optional, defaults to the procedure's path)                                                   |
+| `.handler(handler)`   | Define a non-Effect handler (standard oRPC handler)                                                                               |
+| `.effect(handler)`    | Define the Effect handler. Return an `Effect` for a unary result, or a `Stream` to serve the procedure as an event iterator (SSE) |
+| `.prefix(prefix)`     | Prefix all procedures in the router (for OpenAPI)                                                                                 |
+| `.tag(...tags)`       | Add tags to all procedures in the router (for OpenAPI)                                                                            |
+| `.router(router)`     | Apply all options to a router                                                                                                     |
+| `.lazy(loader)`       | Create and apply options to a lazy-loaded router                                                                                  |
 
 ### `EffectDecoratedProcedure`
 
