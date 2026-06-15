@@ -209,14 +209,12 @@ export function createEffectProcedureHandler<
       signal?: AbortSignal;
     },
   ) {
-    const mappedStream = Stream.catchAll(stream, (error: unknown) => {
-      const orpcError = isORPCTaggedError(error)
-        ? error.toORPCError()
-        : error instanceof ORPCError
-          ? error
-          : new ORPCError("INTERNAL_SERVER_ERROR", { cause: error });
-      return Stream.fail(orpcError);
-    });
+    // Map the full Cause (typed failures AND defects/interrupts) so that
+    // `Stream.die`, thrown exceptions, and aborts surface as ORPCErrors rather
+    // than leaking raw onto the ReadableStream.
+    const mappedStream = Stream.catchAllCause(stream, (cause) =>
+      Stream.fail(toORPCErrorFromCause(cause, config.signal)),
+    );
     const readableEffect = Stream.toReadableStreamEffect(mappedStream);
     const tracedEffect = Effect.withSpan(readableEffect, config.spanName, {
       captureStackTrace: config.captureStackTrace,
@@ -232,8 +230,12 @@ export function createEffectProcedureHandler<
     return runtime
       .runPromiseExit(
         effectWithRefs as Effect.Effect<ReadableStream<unknown>, never, never>,
+        { signal: config.signal },
       )
       .then((exit) => {
+        // This only catches failures constructing the ReadableStream. Errors
+        // raised while the stream is being consumed surface through the stream
+        // itself (mapped by `mappedStream` above), not here.
         if (Exit.isFailure(exit)) {
           throw toORPCErrorFromCause(exit.cause, config.signal);
         }

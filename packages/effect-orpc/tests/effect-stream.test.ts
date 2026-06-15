@@ -3,8 +3,8 @@ import { Context, Effect, Layer, ManagedRuntime, Stream } from "effect";
 import { describe, expect, it } from "vitest";
 import z from "zod";
 
-import { makeEffectORPC } from "../src/effect-builder";
-import { ORPCTaggedError } from "../src/tagged-error";
+import { makeEffectORPC } from "../src";
+import { ORPCTaggedError } from "../src";
 
 const runtime = ManagedRuntime.make(Layer.empty);
 
@@ -192,4 +192,35 @@ describe("effect stream", () => {
     }
     expect(values.length).toBeGreaterThanOrEqual(2);
   }, 10000);
+
+  it("converts stream defects to ORPCErrors", async () => {
+    const builder = makeEffectORPC(runtime);
+    const procedure = builder.effect(() => Stream.die(new Error("boom")));
+
+    const result = await callHandler(procedure);
+
+    await expect(async () => {
+      for await (const _ of result) {
+        // should not reach
+      }
+    }).rejects.toMatchObject({
+      code: "INTERNAL_SERVER_ERROR",
+    });
+  });
+
+  it("throws CLIENT_CLOSED_REQUEST when signal is already aborted", async () => {
+    const builder = makeEffectORPC(runtime);
+    const procedure = builder.effect(() =>
+      Stream.make({ value: 1 }, { value: 2 }),
+    );
+
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      callHandler(procedure, { signal: controller.signal }),
+    ).rejects.toMatchObject({
+      code: "CLIENT_CLOSED_REQUEST",
+    });
+  });
 });
