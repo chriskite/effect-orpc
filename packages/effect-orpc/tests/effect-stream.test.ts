@@ -121,6 +121,20 @@ describe("effect stream", () => {
     expect(values).toEqual([0, 1, 2]);
   });
 
+  it("exposes lastEventId to the stream handler for resumption", async () => {
+    const builder = makeEffectORPC(runtime);
+    // A resumable stream uses lastEventId to skip already-delivered events.
+    const procedure = builder.effect(({ lastEventId }) => {
+      const start = lastEventId ? Number(lastEventId) + 1 : 0;
+      return Stream.range(start, start + 2);
+    });
+
+    const result = await callHandler(procedure, { lastEventId: "4" });
+
+    const values = await collectIterator(result);
+    expect(values).toEqual([5, 6, 7]);
+  });
+
   it("works with eventIterator output schema", async () => {
     const builder = makeEffectORPC(runtime);
     const procedure = builder
