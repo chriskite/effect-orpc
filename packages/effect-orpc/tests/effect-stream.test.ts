@@ -193,6 +193,34 @@ describe("effect stream", () => {
     expect(values.length).toBeGreaterThanOrEqual(2);
   }, 10000);
 
+  it("delivers values emitted before a mid-stream failure", async () => {
+    // Regression: a value emitted immediately before a failure must not be
+    // dropped. Failing into a ReadableStream resets its queue and discards
+    // buffered chunks; errors are carried in-band to preserve ordering.
+    const builder = makeEffectORPC(runtime);
+    const procedure = builder.effect(() =>
+      Stream.concat(
+        Stream.make({ value: 1 }, { value: 2 }),
+        Stream.fail(new Error("boom")),
+      ),
+    );
+
+    const result = await callHandler(procedure);
+
+    const values: { value: number }[] = [];
+    let caught: any;
+    try {
+      for await (const value of result) {
+        values.push(value);
+      }
+    } catch (e) {
+      caught = e;
+    }
+
+    expect(values).toEqual([{ value: 1 }, { value: 2 }]);
+    expect(caught?.code).toBe("INTERNAL_SERVER_ERROR");
+  });
+
   it("converts stream defects to ORPCErrors", async () => {
     const builder = makeEffectORPC(runtime);
     const procedure = builder.effect(() => Stream.die(new Error("boom")));
