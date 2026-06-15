@@ -424,7 +424,7 @@ export interface EffectBuilderSurface<
   effect<UFuncOutput>(
     effectFn: EffectProcedureHandler<
       TCurrentContext,
-      TInputSchema,
+      InferSchemaOutput<TInputSchema>,
       UFuncOutput,
       TEffectErrorMap,
       TRequirementsProvided,
